@@ -21,7 +21,7 @@ import { BillingCheckoutPage } from './pages/billing/BillingCheckoutPage'
 import { ContactsPage } from './pages/contacts/ContactsPage'
 import { InvoicesPage } from './pages/invoices/InvoicesPage'
 import { InvoiceEditor } from './pages/invoices/InvoiceEditor'
-import { CompanySettingsPage } from './pages/invoices/CompanySettingsPage'
+import { CompanySettingsPage } from './pages/company/CompanySettingsPage'
 
 function ProtectedRoute(props: {
   component: Component
@@ -120,7 +120,7 @@ export const routes: RouteDefinition[] = [
     ),
   },
   {
-    path: '/invoices/settings',
+    path: '/company',
     component: () => (
       <ProtectedRoute
         component={() => <BasePage mainComponent={CompanySettingsPage} />}

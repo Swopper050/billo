@@ -122,6 +122,7 @@ class InvoiceLineInputSchema(Schema):
     description = fields.String(required=True)
     quantity = fields.Decimal(load_default=Decimal("1"), allow_none=True)
     unit_price = fields.Decimal(load_default=Decimal("0"), allow_none=True)
+    vat_rate = fields.Decimal(load_default=None, allow_none=True)
 
 
 class InvoiceInputSchema(Schema):
@@ -223,7 +224,11 @@ def _sender_snapshot(settings: CompanySettings) -> dict:
     }
 
 
-def _apply_lines(invoice: CustomerInvoice, lines_data: list[dict]) -> None:
+def _apply_lines(
+    invoice: CustomerInvoice,
+    lines_data: list[dict],
+    default_vat_rate: Decimal,
+) -> None:
     invoice.lines.clear()
     for index, line_data in enumerate(lines_data):
         description = (line_data.get("description") or "").strip()
@@ -235,12 +240,16 @@ def _apply_lines(invoice: CustomerInvoice, lines_data: list[dict]) -> None:
         unit_price = line_data.get("unit_price")
         if unit_price is None:
             unit_price = Decimal("0")
+        vat_rate = line_data.get("vat_rate")
+        if vat_rate is None:
+            vat_rate = default_vat_rate
         invoice.lines.append(
             CustomerInvoiceLine(
                 position=index,
                 description=description,
                 quantity=Decimal(str(quantity)),
                 unit_price=Decimal(str(unit_price)),
+                vat_rate=Decimal(str(vat_rate)),
             )
         )
 
@@ -287,7 +296,7 @@ class InvoiceList(Resource):
             **_sender_snapshot(settings),
         )
 
-        _apply_lines(invoice, data.get("lines") or [])
+        _apply_lines(invoice, data.get("lines") or [], invoice.vat_rate)
 
         db.session.add(invoice)
         db.session.commit()
@@ -337,7 +346,7 @@ class InvoiceDetail(Resource):
             invoice.notes = data["notes"]
 
         if "lines" in data:
-            _apply_lines(invoice, data.get("lines") or [])
+            _apply_lines(invoice, data.get("lines") or [], invoice.vat_rate)
 
         db.session.commit()
         return CustomerInvoiceSchema().dump(invoice)
@@ -562,10 +571,11 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     pdf.set_fill_color(*dark)
     pdf.rect(margin, table_top, content_w, hdr_h, "F")
 
-    col_desc = content_w * 0.50
-    col_qty = content_w * 0.13
-    col_unit = content_w * 0.18
-    col_amount = content_w * 0.19
+    col_desc = content_w * 0.45
+    col_qty = content_w * 0.11
+    col_unit = content_w * 0.16
+    col_vat = content_w * 0.10
+    col_amount = content_w * 0.18
 
     pdf.set_xy(margin, table_top)
     pdf.set_font("Helvetica", "B", 8.5)
@@ -573,6 +583,7 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     pdf.cell(col_desc, hdr_h, "  Description")
     pdf.cell(col_qty, hdr_h, "Qty", align="R")
     pdf.cell(col_unit, hdr_h, "Unit Price", align="R")
+    pdf.cell(col_vat, hdr_h, "VAT", align="R")
     pdf.cell(
         col_amount,
         hdr_h,
@@ -601,6 +612,7 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
             _format_money(line.unit_price, invoice.currency),
             align="R",
         )
+        pdf.cell(col_vat, row_h, f"{line.vat_rate.normalize():f}%", align="R")
         pdf.set_font("Helvetica", "B", 9)
         pdf.cell(
             col_amount,
@@ -622,7 +634,7 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     totals_x = page_w - margin - 80
 
     subtotal = invoice.subtotal
-    vat_amount = invoice.vat_amount
+    breakdown = invoice.vat_breakdown
     total = invoice.total
 
     pdf.set_xy(totals_x, totals_y)
@@ -639,20 +651,23 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
         new_y=YPos.NEXT,
     )
 
-    pdf.set_xy(totals_x, totals_y + 7)
-    pdf.set_text_color(*gray)
-    pdf.cell(40, 6, f"VAT ({invoice.vat_rate.normalize():f}%)")
-    pdf.set_text_color(*dark)
-    pdf.cell(
-        40,
-        6,
-        _format_money(vat_amount, invoice.currency),
-        align="R",
-        new_x=XPos.LMARGIN,
-        new_y=YPos.NEXT,
-    )
+    cursor_y = totals_y + 7
+    for bucket in breakdown:
+        pdf.set_xy(totals_x, cursor_y)
+        pdf.set_text_color(*gray)
+        pdf.cell(40, 6, f"VAT ({bucket['rate'].normalize():f}%)")
+        pdf.set_text_color(*dark)
+        pdf.cell(
+            40,
+            6,
+            _format_money(bucket["vat"], invoice.currency),
+            align="R",
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+        cursor_y += 6
 
-    div_y = totals_y + 15
+    div_y = cursor_y + 2
     pdf.set_draw_color(*border_color)
     pdf.line(totals_x, div_y, page_w - margin, div_y)
 

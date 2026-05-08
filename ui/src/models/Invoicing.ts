@@ -33,13 +33,22 @@ export interface InvoiceLineAttributes {
   description: string
   quantity: string
   unit_price: string
+  vat_rate: string
   line_total: string
+  line_vat: string
 }
 
 export interface InvoiceLineInput {
   description: string
   quantity: string
   unit_price: string
+  vat_rate: string
+}
+
+export interface VatBreakdownEntry {
+  rate: string
+  net: string
+  vat: string
 }
 
 export type InvoiceStatus = 'draft' | 'sent' | 'paid'
@@ -87,6 +96,7 @@ export interface InvoiceAttributes extends BaseModelAttributes {
   subtotal: string
   vat_amount: string
   total: string
+  vat_breakdown: VatBreakdownEntry[]
 }
 
 export interface InvoiceListItemAttributes {

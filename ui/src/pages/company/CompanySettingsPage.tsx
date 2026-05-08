@@ -6,7 +6,6 @@ import {
   Show,
 } from 'solid-js'
 import { createStore } from 'solid-js/store'
-import { useNavigate } from '@solidjs/router'
 
 import { getCompanySettings, updateCompanySettings } from '../../api'
 import { Button } from '../../components/Button'
@@ -48,7 +47,6 @@ function readFileAsDataUrl(file: File): Promise<string> {
 export function CompanySettingsPage(): JSXElement {
   const { t } = useLocale()
   const { currentWorkspace } = useWorkspace()
-  const navigate = useNavigate()
   const workspaceId = () => currentWorkspace()?.id ?? 0
 
   const [settings] = createResource(workspaceId, async (id) => {
@@ -121,20 +119,11 @@ export function CompanySettingsPage(): JSXElement {
   return (
     <div class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
       <div class="max-w-3xl mx-auto">
-        <div class="mb-6 flex items-center gap-3">
-          <button
-            class="btn btn-ghost btn-sm"
-            onClick={() => navigate('/invoices')}
-          >
-            <i class="fa-solid fa-arrow-left mr-2" />
-            {t('back')}
-          </button>
-          <div>
-            <h1 class="text-2xl font-bold">{t('company_settings')}</h1>
-            <p class="text-base-content/60 text-sm mt-1">
-              {t('company_settings_subtitle')}
-            </p>
-          </div>
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold">{t('my_company')}</h1>
+          <p class="text-base-content/60 text-sm mt-1">
+            {t('company_settings_subtitle')}
+          </p>
         </div>
 
         <form class="flex flex-col gap-6" onSubmit={handleSubmit}>
@@ -293,11 +282,6 @@ export function CompanySettingsPage(): JSXElement {
               </span>
             </Show>
             <div class="ml-auto flex gap-2">
-              <Button
-                variant="ghost"
-                label={t('cancel')}
-                onClick={() => navigate('/invoices')}
-              />
               <Button
                 type="submit"
                 color="primary"

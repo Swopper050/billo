@@ -7,8 +7,8 @@ import {
   JSXElement,
   Show,
 } from 'solid-js'
-import { createStore, produce } from 'solid-js/store'
-import { useNavigate, useParams } from '@solidjs/router'
+import { createStore, produce, SetStoreFunction } from 'solid-js/store'
+import { A, useNavigate, useParams } from '@solidjs/router'
 
 import {
   createInvoice,
@@ -23,6 +23,7 @@ import { useLocale } from '../../context/LocaleProvider'
 import { useWorkspace } from '../../context/WorkspaceProvider'
 import { OrganizationAttributes } from '../../models/Contacts'
 import {
+  CompanySettingsAttributes,
   InvoiceAttributes,
   InvoiceInput,
   InvoiceLineInput,
@@ -36,24 +37,17 @@ interface EditorState {
   issue_date: string
   due_date: string
   currency: string
-  vat_rate: string
   notes: string
-  recipient_name: string
-  recipient_email: string
-  recipient_address_line1: string
-  recipient_address_line2: string
-  recipient_postal_code: string
-  recipient_city: string
-  recipient_country: string
-  recipient_vat_number: string
-  recipient_kvk_number: string
   lines: InvoiceLineInput[]
 }
 
-const EMPTY_LINE: InvoiceLineInput = {
-  description: '',
-  quantity: '1',
-  unit_price: '0.00',
+function emptyLine(defaultVat: string): InvoiceLineInput {
+  return {
+    description: '',
+    quantity: '1',
+    unit_price: '0.00',
+    vat_rate: defaultVat,
+  }
 }
 
 function todayIso(): string {
@@ -66,7 +60,7 @@ function defaultDueDate(): string {
   return d.toISOString().slice(0, 10)
 }
 
-function emptyState(): EditorState {
+function emptyState(defaultVat: string): EditorState {
   return {
     organization_id: null,
     invoice_number: '',
@@ -74,18 +68,8 @@ function emptyState(): EditorState {
     issue_date: todayIso(),
     due_date: defaultDueDate(),
     currency: 'EUR',
-    vat_rate: '21.00',
     notes: '',
-    recipient_name: '',
-    recipient_email: '',
-    recipient_address_line1: '',
-    recipient_address_line2: '',
-    recipient_postal_code: '',
-    recipient_city: '',
-    recipient_country: '',
-    recipient_vat_number: '',
-    recipient_kvk_number: '',
-    lines: [{ ...EMPTY_LINE }],
+    lines: [emptyLine(defaultVat)],
   }
 }
 
@@ -97,49 +81,57 @@ function fromInvoice(invoice: InvoiceAttributes): EditorState {
     issue_date: invoice.issue_date,
     due_date: invoice.due_date ?? '',
     currency: invoice.currency,
-    vat_rate: invoice.vat_rate,
     notes: invoice.notes ?? '',
-    recipient_name: invoice.recipient_name ?? '',
-    recipient_email: invoice.recipient_email ?? '',
-    recipient_address_line1: invoice.recipient_address_line1 ?? '',
-    recipient_address_line2: invoice.recipient_address_line2 ?? '',
-    recipient_postal_code: invoice.recipient_postal_code ?? '',
-    recipient_city: invoice.recipient_city ?? '',
-    recipient_country: invoice.recipient_country ?? '',
-    recipient_vat_number: invoice.recipient_vat_number ?? '',
-    recipient_kvk_number: invoice.recipient_kvk_number ?? '',
     lines:
       invoice.lines.length > 0
         ? invoice.lines.map((l) => ({
             description: l.description,
             quantity: l.quantity,
             unit_price: l.unit_price,
+            vat_rate: l.vat_rate,
           }))
-        : [{ ...EMPTY_LINE }],
+        : [emptyLine(invoice.vat_rate)],
   }
 }
 
-function applyOrganization(
-  setForm: (...args: unknown[]) => void,
-  org: OrganizationAttributes
-) {
-  setForm('recipient_name', org.name)
-  setForm('recipient_email', org.email ?? '')
-  setForm('recipient_address_line1', org.address_line1 ?? '')
-  setForm('recipient_address_line2', org.address_line2 ?? '')
-  setForm('recipient_postal_code', org.postal_code ?? '')
-  setForm('recipient_city', org.city ?? '')
-  setForm('recipient_country', org.country ?? '')
-  setForm('recipient_vat_number', org.vat_number ?? '')
-  setForm('recipient_kvk_number', org.kvk_number ?? '')
-}
-
-function moneyDisplay(amount: number, currency: string): string {
-  if (Number.isNaN(amount)) return `${currency} 0.00`
+function formatMoney(amount: number, currency: string): string {
+  if (Number.isNaN(amount)) amount = 0
   return `${currency} ${amount.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString()
+}
+
+interface VatBucket {
+  rate: number
+  net: number
+  vat: number
+}
+
+function computeBreakdown(lines: InvoiceLineInput[]): VatBucket[] {
+  const map = new Map<number, number>()
+  for (const line of lines) {
+    if (!line.description.trim()) continue
+    const qty = parseFloat(line.quantity || '0') || 0
+    const price = parseFloat(line.unit_price || '0') || 0
+    const rate = parseFloat(line.vat_rate || '0') || 0
+    const net = qty * price
+    map.set(rate, (map.get(rate) ?? 0) + net)
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([rate, net]) => ({
+      rate,
+      net,
+      vat: (net * rate) / 100,
+    }))
 }
 
 export function InvoiceEditor(): JSXElement {
@@ -152,7 +144,7 @@ export function InvoiceEditor(): JSXElement {
   const isEdit = () => !!params.id
   const invoiceId = () => (params.id ? Number(params.id) : null)
 
-  const [form, setForm] = createStore<EditorState>(emptyState())
+  const [form, setForm] = createStore<EditorState>(emptyState('21.00'))
   const [saving, setSaving] = createSignal(false)
   const [submitError, setSubmitError] = createSignal<string | null>(null)
 
@@ -174,7 +166,8 @@ export function InvoiceEditor(): JSXElement {
     }
   )
 
-  // Initialize form when editing or when settings load.
+  // When editing, hydrate from the existing invoice. When creating, seed VAT
+  // from company settings once they load.
   createEffect(() => {
     const invoice = existingInvoice()
     if (invoice) {
@@ -184,26 +177,28 @@ export function InvoiceEditor(): JSXElement {
     if (isEdit()) return
     const settings = companySettings()
     if (settings) {
-      setForm('vat_rate', settings.default_vat_rate)
+      setForm(
+        'lines',
+        form.lines.map((l) =>
+          l.vat_rate === '21.00'
+            ? { ...l, vat_rate: settings.default_vat_rate }
+            : l
+        )
+      )
     }
   })
 
-  const handleOrgSelect = (orgId: number | null) => {
-    setForm('organization_id', orgId)
-    if (orgId === null) return
-    const org = (organizations() ?? []).find((o) => o.id === orgId)
-    if (org) {
-      applyOrganization((path: unknown, value: unknown) => {
-        setForm(path as keyof EditorState, value as never)
-      }, org)
-    }
+  const selectedOrg = () => {
+    const id = form.organization_id
+    if (id === null) return null
+    return (organizations() ?? []).find((o) => o.id === id) ?? null
   }
 
   const addLine = () => {
     setForm(
       'lines',
       produce((lines) => {
-        lines.push({ ...EMPTY_LINE })
+        lines.push(emptyLine(form.lines[0]?.vat_rate ?? '21.00'))
       })
     )
   }
@@ -213,7 +208,7 @@ export function InvoiceEditor(): JSXElement {
       'lines',
       produce((lines) => {
         if (lines.length <= 1) {
-          lines[0] = { ...EMPTY_LINE }
+          lines[0] = emptyLine(form.lines[0]?.vat_rate ?? '21.00')
         } else {
           lines.splice(index, 1)
         }
@@ -229,17 +224,23 @@ export function InvoiceEditor(): JSXElement {
     setForm('lines', index, field, value)
   }
 
-  const subtotal = createMemo(() => {
-    return form.lines.reduce((sum, line) => {
+  const subtotal = createMemo(() =>
+    form.lines.reduce((sum, line) => {
+      if (!line.description.trim()) return sum
       const qty = parseFloat(line.quantity || '0') || 0
       const price = parseFloat(line.unit_price || '0') || 0
       return sum + qty * price
     }, 0)
-  })
+  )
 
-  const vatRateNumber = () => parseFloat(form.vat_rate || '0') || 0
-  const vatAmount = createMemo(() => (subtotal() * vatRateNumber()) / 100)
-  const total = createMemo(() => subtotal() + vatAmount())
+  const breakdown = createMemo(() => computeBreakdown(form.lines))
+  const vatTotal = createMemo(() =>
+    breakdown().reduce((sum, b) => sum + b.vat, 0)
+  )
+  const total = createMemo(() => subtotal() + vatTotal())
+
+  const settingsValue = (): CompanySettingsAttributes | null =>
+    companySettings() ?? null
 
   const buildPayload = (): InvoiceInput => {
     const lines = form.lines
@@ -248,6 +249,7 @@ export function InvoiceEditor(): JSXElement {
         description: l.description,
         quantity: l.quantity || '1',
         unit_price: l.unit_price || '0',
+        vat_rate: l.vat_rate || '0',
       }))
 
     return {
@@ -257,29 +259,19 @@ export function InvoiceEditor(): JSXElement {
       issue_date: form.issue_date,
       due_date: form.due_date || null,
       currency: form.currency,
-      vat_rate: form.vat_rate,
       notes: form.notes || null,
       lines,
-      recipient_name: form.recipient_name,
-      recipient_email: form.recipient_email || null,
-      recipient_address_line1: form.recipient_address_line1 || null,
-      recipient_address_line2: form.recipient_address_line2 || null,
-      recipient_postal_code: form.recipient_postal_code || null,
-      recipient_city: form.recipient_city || null,
-      recipient_country: form.recipient_country || null,
-      recipient_vat_number: form.recipient_vat_number || null,
-      recipient_kvk_number: form.recipient_kvk_number || null,
     }
   }
 
   const handleSave = async (
-    e: Event,
+    e: Event | undefined,
     options: { thenDownload?: boolean } = {}
   ) => {
-    e.preventDefault()
+    e?.preventDefault?.()
     setSubmitError(null)
-    if (!form.recipient_name.trim()) {
-      setSubmitError(t('recipient_required'))
+    if (form.organization_id === null) {
+      setSubmitError(t('please_select_a_klant'))
       return
     }
     if (form.lines.every((l) => l.description.trim() === '')) {
@@ -319,385 +311,486 @@ export function InvoiceEditor(): JSXElement {
     }
   }
 
-  const showLogoMissingHint = () => {
-    const settings = companySettings()
-    return !!settings && !settings.logo_data_url
+  const noKlanten = () => (organizations() ?? []).length === 0
+  const showCompanyHint = () => {
+    const s = settingsValue()
+    return !!s && !s.company_name
   }
 
   return (
     <div class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
       <div class="max-w-5xl mx-auto">
-        <div class="mb-6 flex items-center gap-3">
-          <button
-            class="btn btn-ghost btn-sm"
-            onClick={() => navigate('/invoices')}
-          >
-            <i class="fa-solid fa-arrow-left mr-2" />
-            {t('back')}
-          </button>
-          <h1 class="text-2xl font-bold">
-            {isEdit() ? t('edit_invoice') : t('new_invoice')}
-          </h1>
+        <div class="mb-6 flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-3">
+            <button
+              class="btn btn-ghost btn-sm"
+              onClick={() => navigate('/invoices')}
+            >
+              <i class="fa-solid fa-arrow-left mr-2" />
+              {t('back')}
+            </button>
+            <h1 class="text-2xl font-bold">
+              {isEdit() ? t('edit_invoice') : t('new_invoice')}
+            </h1>
+          </div>
+          <div class="flex gap-2">
+            <Button
+              variant="ghost"
+              label={t('cancel')}
+              onClick={() => navigate('/invoices')}
+            />
+            <Button
+              variant="outline"
+              color="primary"
+              icon="fa-solid fa-download"
+              isLoading={saving()}
+              label={t('save_and_download_pdf')}
+              onClick={(e) => handleSave(e, { thenDownload: true })}
+            />
+            <Button
+              type="button"
+              color="primary"
+              icon="fa-solid fa-save"
+              isLoading={saving()}
+              label={t('save_invoice')}
+              onClick={(e) => handleSave(e)}
+            />
+          </div>
         </div>
 
-        <Show when={showLogoMissingHint()}>
-          <div class="alert alert-info mb-4 text-sm">
-            <i class="fa-solid fa-circle-info" />
-            <span>{t('company_settings_hint')}</span>
-            <button
-              class="btn btn-sm btn-ghost"
-              onClick={() => navigate('/invoices/settings')}
-            >
-              {t('configure')}
-            </button>
+        <Show when={noKlanten()}>
+          <div class="alert alert-warning mb-4 text-sm">
+            <i class="fa-solid fa-triangle-exclamation" />
+            <span>{t('no_klanten_for_invoice')}</span>
+            <A class="btn btn-sm btn-ghost" href="/contacts">
+              {t('manage_contacts')}
+            </A>
           </div>
         </Show>
 
-        <form
-          class="grid grid-cols-1 lg:grid-cols-3 gap-6"
-          onSubmit={(e) => handleSave(e)}
-        >
-          <div class="lg:col-span-2 flex flex-col gap-6">
-            <Section title={t('recipient')}>
-              <div>
-                <label class="label label-text">{t('select_klant')}</label>
-                <select
-                  class="select select-bordered w-full"
-                  value={form.organization_id ?? ''}
-                  onChange={(e) =>
-                    handleOrgSelect(
-                      e.currentTarget.value === ''
-                        ? null
-                        : Number(e.currentTarget.value)
-                    )
-                  }
-                >
-                  <option value="">{t('manual_recipient')}</option>
-                  <For each={organizations() ?? []}>
-                    {(org) => <option value={org.id}>{org.name}</option>}
-                  </For>
-                </select>
-              </div>
-
-              <Field
-                label={t('recipient_name')}
-                required
-                value={form.recipient_name}
-                onInput={(v) => setForm('recipient_name', v)}
-              />
-              <Field
-                label={t('email')}
-                value={form.recipient_email}
-                onInput={(v) => setForm('recipient_email', v)}
-              />
-              <Field
-                label={t('address_line1')}
-                value={form.recipient_address_line1}
-                onInput={(v) => setForm('recipient_address_line1', v)}
-              />
-              <Field
-                label={t('address_line2')}
-                value={form.recipient_address_line2}
-                onInput={(v) => setForm('recipient_address_line2', v)}
-              />
-              <div class="grid grid-cols-3 gap-3">
-                <Field
-                  label={t('postal_code')}
-                  value={form.recipient_postal_code}
-                  onInput={(v) => setForm('recipient_postal_code', v)}
-                />
-                <Field
-                  label={t('city')}
-                  value={form.recipient_city}
-                  onInput={(v) => setForm('recipient_city', v)}
-                  class="col-span-2"
-                />
-              </div>
-              <Field
-                label={t('country')}
-                value={form.recipient_country}
-                onInput={(v) => setForm('recipient_country', v)}
-              />
-              <div class="grid grid-cols-2 gap-3">
-                <Field
-                  label={t('vat_number')}
-                  value={form.recipient_vat_number}
-                  onInput={(v) => setForm('recipient_vat_number', v)}
-                />
-                <Field
-                  label={t('kvk_number')}
-                  value={form.recipient_kvk_number}
-                  onInput={(v) => setForm('recipient_kvk_number', v)}
-                />
-              </div>
-            </Section>
-
-            <Section title={t('invoice_lines')}>
-              <div class="overflow-x-auto">
-                <table class="table table-sm">
-                  <thead>
-                    <tr>
-                      <th class="w-1/2">{t('description')}</th>
-                      <th>{t('quantity')}</th>
-                      <th>{t('unit_price')}</th>
-                      <th class="text-end">{t('line_total')}</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <For each={form.lines}>
-                      {(line, index) => {
-                        const lineTotal = () => {
-                          const q = parseFloat(line.quantity || '0') || 0
-                          const p = parseFloat(line.unit_price || '0') || 0
-                          return q * p
-                        }
-                        return (
-                          <tr>
-                            <td>
-                              <input
-                                class="input input-bordered input-sm w-full"
-                                value={line.description}
-                                placeholder={t('line_description_placeholder')}
-                                onInput={(e) =>
-                                  updateLine(
-                                    index(),
-                                    'description',
-                                    e.currentTarget.value
-                                  )
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                class="input input-bordered input-sm w-24"
-                                type="number"
-                                step="0.001"
-                                value={line.quantity}
-                                onInput={(e) =>
-                                  updateLine(
-                                    index(),
-                                    'quantity',
-                                    e.currentTarget.value
-                                  )
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                class="input input-bordered input-sm w-28"
-                                type="number"
-                                step="0.01"
-                                value={line.unit_price}
-                                onInput={(e) =>
-                                  updateLine(
-                                    index(),
-                                    'unit_price',
-                                    e.currentTarget.value
-                                  )
-                                }
-                              />
-                            </td>
-                            <td class="text-end font-medium">
-                              {moneyDisplay(lineTotal(), form.currency)}
-                            </td>
-                            <td class="text-end">
-                              <IconButton
-                                icon="fa-solid fa-trash"
-                                size="sm"
-                                color="error"
-                                onClick={() => removeLine(index())}
-                              />
-                            </td>
-                          </tr>
-                        )
-                      }}
-                    </For>
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="mt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon="fa-solid fa-plus"
-                  label={t('add_line')}
-                  onClick={addLine}
-                />
-              </div>
-            </Section>
-
-            <Section title={t('notes')}>
-              <textarea
-                class="textarea textarea-bordered w-full"
-                rows="3"
-                placeholder={t('notes_placeholder')}
-                value={form.notes}
-                onInput={(e) => setForm('notes', e.currentTarget.value)}
-              />
-            </Section>
+        <Show when={showCompanyHint()}>
+          <div class="alert alert-info mb-4 text-sm">
+            <i class="fa-solid fa-circle-info" />
+            <span>{t('company_settings_hint')}</span>
+            <A class="btn btn-sm btn-ghost" href="/company">
+              {t('configure')}
+            </A>
           </div>
+        </Show>
 
-          <div class="flex flex-col gap-6">
-            <Section title={t('invoice_details')}>
-              <Field
-                label={t('invoice_number')}
-                value={form.invoice_number}
-                placeholder={t('invoice_number_placeholder')}
-                onInput={(v) => setForm('invoice_number', v)}
-              />
-              <div>
-                <label class="label label-text">{t('status')}</label>
-                <select
-                  class="select select-bordered w-full"
-                  value={form.status}
-                  onChange={(e) =>
-                    setForm('status', e.currentTarget.value as InvoiceStatus)
-                  }
-                >
-                  <option value="draft">{t('invoice_status_draft')}</option>
-                  <option value="sent">{t('invoice_status_sent')}</option>
-                  <option value="paid">{t('invoice_status_paid')}</option>
-                </select>
-              </div>
-              <Field
-                label={t('issue_date')}
-                type="date"
-                value={form.issue_date}
-                onInput={(v) => setForm('issue_date', v)}
-              />
-              <Field
-                label={t('due_date')}
-                type="date"
-                value={form.due_date}
-                onInput={(v) => setForm('due_date', v)}
-              />
-              <div class="grid grid-cols-2 gap-3">
-                <Field
-                  label={t('currency')}
-                  value={form.currency}
-                  onInput={(v) => setForm('currency', v)}
-                />
-                <Field
-                  label={t('vat_rate_percent')}
-                  type="number"
-                  value={form.vat_rate}
-                  onInput={(v) => setForm('vat_rate', v)}
-                />
-              </div>
-            </Section>
+        <Show when={submitError()}>
+          <div class="alert alert-error text-sm mb-4">{submitError()}</div>
+        </Show>
 
-            <Section title={t('totals')}>
-              <TotalRow
-                label={t('subtotal')}
-                value={moneyDisplay(subtotal(), form.currency)}
-              />
-              <TotalRow
-                label={`${t('vat')} (${form.vat_rate}%)`}
-                value={moneyDisplay(vatAmount(), form.currency)}
-              />
-              <div class="border-t border-base-300 pt-2 mt-2">
-                <TotalRow
-                  label={t('total')}
-                  value={moneyDisplay(total(), form.currency)}
-                  bold
-                />
-              </div>
-            </Section>
-
-            <Show when={submitError()}>
-              <div class="alert alert-error text-sm">{submitError()}</div>
-            </Show>
-
-            <div class="flex flex-col gap-2">
-              <Button
-                type="submit"
-                color="primary"
-                block
-                isLoading={saving()}
-                icon="fa-solid fa-save"
-                label={t('save_invoice')}
-              />
-              <Button
-                variant="outline"
-                color="primary"
-                block
-                isLoading={saving()}
-                icon="fa-solid fa-download"
-                label={t('save_and_download_pdf')}
-                onClick={(e) => handleSave(e!, { thenDownload: true })}
-              />
-              <Button
-                variant="ghost"
-                block
-                label={t('cancel')}
-                onClick={() => navigate('/invoices')}
-              />
-            </div>
-          </div>
-        </form>
+        <InvoicePreview
+          settings={settingsValue()}
+          form={form}
+          setForm={setForm}
+          subtotal={subtotal()}
+          breakdown={breakdown()}
+          total={total()}
+          organizations={organizations() ?? []}
+          selectedOrg={selectedOrg()}
+          onOrgChange={(id) => setForm('organization_id', id)}
+          onLineUpdate={updateLine}
+          onLineRemove={removeLine}
+          onAddLine={addLine}
+        />
       </div>
     </div>
   )
 }
 
-function Section(props: {
-  title: string
-  children: JSXElement | JSXElement[]
-}): JSXElement {
+interface PreviewProps {
+  settings: CompanySettingsAttributes | null
+  form: EditorState
+  setForm: SetStoreFunction<EditorState>
+  subtotal: number
+  breakdown: VatBucket[]
+  total: number
+  organizations: OrganizationAttributes[]
+  selectedOrg: OrganizationAttributes | null
+  onOrgChange: (id: number | null) => void
+  onLineUpdate: (
+    index: number,
+    field: keyof InvoiceLineInput,
+    value: string
+  ) => void
+  onLineRemove: (index: number) => void
+  onAddLine: () => void
+}
+
+function InvoicePreview(props: PreviewProps): JSXElement {
+  const { t } = useLocale()
   return (
-    <div class="border border-base-300 rounded-2xl p-4">
-      <h2 class="font-semibold mb-3">{props.title}</h2>
-      <div class="flex flex-col gap-3">{props.children}</div>
+    <div class="bg-base-100 border border-base-300 rounded-2xl shadow-sm overflow-hidden">
+      <div class="h-1 bg-success" />
+
+      <div class="p-6 md:p-10 flex flex-col gap-8">
+        {/* Header */}
+        <div class="flex flex-col md:flex-row gap-6 md:items-start md:justify-between">
+          <div class="flex items-start gap-4">
+            <div class="w-20 h-20 rounded-xl bg-base-200 border border-base-300 flex items-center justify-center overflow-hidden shrink-0">
+              <Show
+                when={props.settings?.logo_data_url}
+                fallback={
+                  <i class="fa-solid fa-image text-2xl text-base-content/30" />
+                }
+              >
+                <img
+                  src={props.settings?.logo_data_url ?? ''}
+                  alt="logo"
+                  class="max-w-full max-h-full object-contain"
+                />
+              </Show>
+            </div>
+            <div class="text-sm leading-5">
+              <div class="text-lg font-bold">
+                {props.settings?.company_name ?? (
+                  <span class="text-base-content/40 font-normal italic">
+                    {t('your_company_name')}
+                  </span>
+                )}
+              </div>
+              <SenderLine value={props.settings?.address_line1} />
+              <SenderLine value={props.settings?.address_line2} />
+              <SenderLine
+                value={[props.settings?.postal_code, props.settings?.city]
+                  .filter(Boolean)
+                  .join(' ')}
+              />
+              <SenderLine value={props.settings?.country} />
+              <SenderLine value={props.settings?.email} />
+              <SenderLine
+                value={
+                  props.settings?.vat_number
+                    ? `${t('vat_number')}: ${props.settings.vat_number}`
+                    : null
+                }
+              />
+            </div>
+          </div>
+
+          <div class="text-right">
+            <div class="text-3xl font-bold tracking-tight">INVOICE</div>
+            <div class="mt-2">
+              <input
+                class="input input-ghost input-sm text-right text-sm w-44 focus:outline-success"
+                value={props.form.invoice_number}
+                placeholder={t('invoice_number_placeholder')}
+                onInput={(e) =>
+                  props.setForm('invoice_number', e.currentTarget.value)
+                }
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-base-300" />
+
+        {/* Meta + Bill To */}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-base-content/50 font-semibold mb-2">
+              {t('invoice_details')}
+            </div>
+            <div class="grid grid-cols-2 gap-y-2 text-sm items-center">
+              <span class="text-base-content/60">{t('issue_date')}</span>
+              <input
+                type="date"
+                class="input input-bordered input-sm w-full"
+                value={props.form.issue_date}
+                onInput={(e) =>
+                  props.setForm('issue_date', e.currentTarget.value)
+                }
+              />
+              <span class="text-base-content/60">{t('due_date')}</span>
+              <input
+                type="date"
+                class="input input-bordered input-sm w-full"
+                value={props.form.due_date}
+                onInput={(e) =>
+                  props.setForm('due_date', e.currentTarget.value)
+                }
+              />
+              <span class="text-base-content/60">{t('status')}</span>
+              <select
+                class="select select-bordered select-sm w-full"
+                value={props.form.status}
+                onChange={(e) =>
+                  props.setForm(
+                    'status',
+                    e.currentTarget.value as InvoiceStatus
+                  )
+                }
+              >
+                <option value="draft">{t('invoice_status_draft')}</option>
+                <option value="sent">{t('invoice_status_sent')}</option>
+                <option value="paid">{t('invoice_status_paid')}</option>
+              </select>
+              <span class="text-base-content/60">{t('currency')}</span>
+              <input
+                class="input input-bordered input-sm w-full"
+                value={props.form.currency}
+                onInput={(e) =>
+                  props.setForm('currency', e.currentTarget.value)
+                }
+              />
+            </div>
+          </div>
+
+          <div>
+            <div class="text-xs uppercase tracking-wider text-base-content/50 font-semibold mb-2">
+              {t('bill_to')}
+            </div>
+            <select
+              class="select select-bordered w-full mb-3"
+              value={props.form.organization_id ?? ''}
+              onChange={(e) =>
+                props.onOrgChange(
+                  e.currentTarget.value === ''
+                    ? null
+                    : Number(e.currentTarget.value)
+                )
+              }
+            >
+              <option value="">{t('select_klant')}</option>
+              <For each={props.organizations}>
+                {(org) => <option value={org.id}>{org.name}</option>}
+              </For>
+            </select>
+            <Show
+              when={props.selectedOrg}
+              fallback={
+                <div class="text-sm text-base-content/40 italic">
+                  {t('no_klant_selected')}
+                </div>
+              }
+            >
+              <RecipientBlock org={props.selectedOrg!} />
+            </Show>
+          </div>
+        </div>
+
+        {/* Lines */}
+        <div>
+          <div class="text-xs uppercase tracking-wider text-base-content/50 font-semibold mb-2">
+            {t('invoice_lines')}
+          </div>
+          <div class="overflow-x-auto rounded-lg border border-base-300">
+            <table class="table table-sm">
+              <thead class="bg-base-200">
+                <tr>
+                  <th class="w-1/2">{t('description')}</th>
+                  <th class="text-right">{t('quantity')}</th>
+                  <th class="text-right">{t('unit_price')}</th>
+                  <th class="text-right">{t('vat_rate_short')}</th>
+                  <th class="text-right">{t('line_total')}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                <For each={props.form.lines}>
+                  {(line, index) => {
+                    const qty = () => parseFloat(line.quantity || '0') || 0
+                    const price = () => parseFloat(line.unit_price || '0') || 0
+                    const lineTotal = () => qty() * price()
+                    return (
+                      <tr>
+                        <td>
+                          <input
+                            class="input input-ghost input-sm w-full"
+                            value={line.description}
+                            placeholder={t('line_description_placeholder')}
+                            onInput={(e) =>
+                              props.onLineUpdate(
+                                index(),
+                                'description',
+                                e.currentTarget.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            class="input input-ghost input-sm w-20 text-right"
+                            type="number"
+                            step="0.001"
+                            value={line.quantity}
+                            onInput={(e) =>
+                              props.onLineUpdate(
+                                index(),
+                                'quantity',
+                                e.currentTarget.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            class="input input-ghost input-sm w-28 text-right"
+                            type="number"
+                            step="0.01"
+                            value={line.unit_price}
+                            onInput={(e) =>
+                              props.onLineUpdate(
+                                index(),
+                                'unit_price',
+                                e.currentTarget.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <div class="flex items-center justify-end gap-1">
+                            <input
+                              class="input input-ghost input-sm w-16 text-right"
+                              type="number"
+                              step="0.01"
+                              value={line.vat_rate}
+                              onInput={(e) =>
+                                props.onLineUpdate(
+                                  index(),
+                                  'vat_rate',
+                                  e.currentTarget.value
+                                )
+                              }
+                            />
+                            <span class="text-base-content/50 text-sm">%</span>
+                          </div>
+                        </td>
+                        <td class="text-right font-medium tabular-nums">
+                          {formatMoney(lineTotal(), props.form.currency)}
+                        </td>
+                        <td class="text-right">
+                          <IconButton
+                            icon="fa-solid fa-trash"
+                            size="sm"
+                            color="error"
+                            onClick={() => props.onLineRemove(index())}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  }}
+                </For>
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="fa-solid fa-plus"
+              label={t('add_line')}
+              onClick={props.onAddLine}
+            />
+          </div>
+        </div>
+
+        {/* Totals */}
+        <div class="flex justify-end">
+          <div class="w-full md:w-80 text-sm">
+            <div class="flex items-center justify-between py-1">
+              <span class="text-base-content/60">{t('subtotal')}</span>
+              <span class="tabular-nums">
+                {formatMoney(props.subtotal, props.form.currency)}
+              </span>
+            </div>
+            <For each={props.breakdown}>
+              {(bucket) => (
+                <div class="flex items-center justify-between py-1">
+                  <span class="text-base-content/60">
+                    {t('vat')} ({bucket.rate}%)
+                  </span>
+                  <span class="tabular-nums">
+                    {formatMoney(bucket.vat, props.form.currency)}
+                  </span>
+                </div>
+              )}
+            </For>
+            <div class="border-t border-base-300 my-1" />
+            <div class="flex items-center justify-between py-1 text-base font-bold">
+              <span>{t('total')}</span>
+              <span class="tabular-nums text-success">
+                {formatMoney(props.total, props.form.currency)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <div class="text-xs uppercase tracking-wider text-base-content/50 font-semibold mb-2">
+            {t('notes')}
+          </div>
+          <textarea
+            class="textarea textarea-bordered w-full"
+            rows="2"
+            placeholder={t('notes_placeholder')}
+            value={props.form.notes}
+            onInput={(e) => props.setForm('notes', e.currentTarget.value)}
+          />
+        </div>
+
+        <Show when={props.settings?.iban || props.settings?.footer_text}>
+          <div class="border-t border-base-300 pt-4 text-xs text-base-content/60">
+            <Show when={props.settings?.iban}>
+              <div>
+                {t('payment_iban_label')}: {props.settings?.iban}
+              </div>
+            </Show>
+            <Show when={props.settings?.footer_text}>
+              <div class="whitespace-pre-line">
+                {props.settings?.footer_text}
+              </div>
+            </Show>
+          </div>
+        </Show>
+
+        <div class="text-xs text-base-content/40">
+          {t('issued_on')} {formatDate(props.form.issue_date)}
+        </div>
+      </div>
     </div>
   )
 }
 
-function Field(props: {
-  label: string
-  value: string
-  onInput: (v: string) => void
-  type?: 'text' | 'email' | 'date' | 'number'
-  required?: boolean
-  placeholder?: string
-  class?: string
-}): JSXElement {
+function SenderLine(props: { value: string | null | undefined }): JSXElement {
   return (
-    <div class={props.class}>
-      <label class="label label-text">
-        {props.label}
-        {props.required && <span class="text-error ml-1">*</span>}
-      </label>
-      <input
-        class="input input-bordered w-full"
-        type={props.type ?? 'text'}
-        required={props.required}
-        placeholder={props.placeholder}
-        value={props.value}
-        onInput={(e) => props.onInput(e.currentTarget.value)}
-      />
-    </div>
+    <Show when={props.value}>
+      <div class="text-base-content/70">{props.value}</div>
+    </Show>
   )
 }
 
-function TotalRow(props: {
-  label: string
-  value: string
-  bold?: boolean
-}): JSXElement {
+function RecipientBlock(props: { org: OrganizationAttributes }): JSXElement {
+  const { t } = useLocale()
   return (
-    <div
-      class={
-        props.bold
-          ? 'flex items-center justify-between text-base font-bold'
-          : 'flex items-center justify-between text-sm'
-      }
-    >
-      <span class={props.bold ? '' : 'text-base-content/70'}>
-        {props.label}
-      </span>
-      <span>{props.value}</span>
+    <div class="text-sm leading-5">
+      <div class="font-semibold">{props.org.name}</div>
+      <Show when={props.org.address_line1}>
+        <div class="text-base-content/70">{props.org.address_line1}</div>
+      </Show>
+      <Show when={props.org.address_line2}>
+        <div class="text-base-content/70">{props.org.address_line2}</div>
+      </Show>
+      <Show when={props.org.postal_code || props.org.city}>
+        <div class="text-base-content/70">
+          {[props.org.postal_code, props.org.city].filter(Boolean).join(' ')}
+        </div>
+      </Show>
+      <Show when={props.org.country}>
+        <div class="text-base-content/70">{props.org.country}</div>
+      </Show>
+      <Show when={props.org.email}>
+        <div class="text-base-content/70">{props.org.email}</div>
+      </Show>
+      <Show when={props.org.vat_number}>
+        <div class="text-base-content/70">
+          {t('vat_number')}: {props.org.vat_number}
+        </div>
+      </Show>
     </div>
   )
 }

@@ -104,6 +104,12 @@ export function BasePage(props: BasePageProps): JSXElement {
                 {t('invoices')}
               </A>
             </li>
+            <li class="mb-1 font-bold">
+              <A href="/company" onClick={() => setDrawerOpen(false)}>
+                <i class="fa-solid fa-briefcase mr-2" />
+                {t('my_company')}
+              </A>
+            </li>
           </ul>
         </div>
       </div>

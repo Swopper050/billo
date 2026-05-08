@@ -104,14 +104,6 @@ export function InvoicesPage(): JSXElement {
             </p>
           </div>
           <div class="flex gap-2">
-            <A
-              href="/invoices/settings"
-              class="btn btn-ghost"
-              aria-label={t('company_settings')}
-            >
-              <i class="fa-solid fa-gear" />
-              <span class="hidden sm:inline">{t('company_settings')}</span>
-            </A>
             <Button
               color="primary"
               icon="fa-solid fa-plus"

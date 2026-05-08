@@ -119,6 +119,20 @@ class CustomerInvoice(db.Model):
     organization: Mapped["db.Model | None"] = relationship("Organization")
 
     @property
+    def vat_breakdown(self) -> list[dict]:
+        """Aggregate net + VAT amounts per VAT rate for the totals block."""
+        buckets: dict[Decimal, Decimal] = {}
+        for line in self.lines:
+            rate = line.vat_rate
+            buckets[rate] = buckets.get(rate, Decimal("0.00")) + line.line_total
+        result = []
+        for rate in sorted(buckets.keys()):
+            net = buckets[rate].quantize(Decimal("0.01"))
+            vat = (net * rate / Decimal("100")).quantize(Decimal("0.01"))
+            result.append({"rate": rate, "net": net, "vat": vat})
+        return result
+
+    @property
     def subtotal(self) -> Decimal:
         return sum(
             (line.line_total for line in self.lines),
@@ -127,7 +141,10 @@ class CustomerInvoice(db.Model):
 
     @property
     def vat_amount(self) -> Decimal:
-        return (self.subtotal * self.vat_rate / Decimal("100")).quantize(Decimal("0.01"))
+        return sum(
+            (bucket["vat"] for bucket in self.vat_breakdown),
+            start=Decimal("0.00"),
+        ).quantize(Decimal("0.01"))
 
     @property
     def total(self) -> Decimal:
@@ -149,6 +166,12 @@ class CustomerInvoiceLine(db.Model):
     unit_price: Mapped[Decimal] = mapped_column(
         Numeric(12, 2), default=Decimal("0.00"), nullable=False
     )
+    vat_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        default=Decimal("21.00"),
+        server_default="21.00",
+        nullable=False,
+    )
 
     invoice: Mapped["CustomerInvoice"] = relationship(
         "CustomerInvoice", back_populates="lines"
@@ -157,6 +180,12 @@ class CustomerInvoiceLine(db.Model):
     @property
     def line_total(self) -> Decimal:
         return (self.quantity * self.unit_price).quantize(Decimal("0.01"))
+
+    @property
+    def line_vat(self) -> Decimal:
+        return (self.line_total * self.vat_rate / Decimal("100")).quantize(
+            Decimal("0.01")
+        )
 
 
 class CompanySettingsSchema(Schema):
@@ -187,10 +216,15 @@ class CustomerInvoiceLineSchema(Schema):
     description = fields.String()
     quantity = fields.Decimal(as_string=True)
     unit_price = fields.Decimal(as_string=True)
+    vat_rate = fields.Decimal(as_string=True)
     line_total = fields.Method("get_line_total")
+    line_vat = fields.Method("get_line_vat")
 
     def get_line_total(self, obj: CustomerInvoiceLine) -> str:
         return str(obj.line_total)
+
+    def get_line_vat(self, obj: CustomerInvoiceLine) -> str:
+        return str(obj.line_vat)
 
 
 class CustomerInvoiceSchema(Schema):
@@ -236,6 +270,7 @@ class CustomerInvoiceSchema(Schema):
     subtotal = fields.Method("get_subtotal")
     vat_amount = fields.Method("get_vat_amount")
     total = fields.Method("get_total")
+    vat_breakdown = fields.Method("get_vat_breakdown")
 
     def get_subtotal(self, obj: CustomerInvoice) -> str:
         return str(obj.subtotal)
@@ -245,6 +280,16 @@ class CustomerInvoiceSchema(Schema):
 
     def get_total(self, obj: CustomerInvoice) -> str:
         return str(obj.total)
+
+    def get_vat_breakdown(self, obj: CustomerInvoice) -> list[dict]:
+        return [
+            {
+                "rate": str(bucket["rate"]),
+                "net": str(bucket["net"]),
+                "vat": str(bucket["vat"]),
+            }
+            for bucket in obj.vat_breakdown
+        ]
 
 
 class CustomerInvoiceListItemSchema(Schema):
