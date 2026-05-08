@@ -1,0 +1,102 @@
+name: Deploy prod
+
+on:
+  push:
+    tags:
+      - "v[0-9].[0-9]+.[0-9]+"
+
+jobs:
+  docker-build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.vars.outputs.tag_name }}
+    steps:
+      - name: Setup
+        uses: actions/checkout@v4
+
+      - name: Get Tag Name
+        id: vars
+        run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push UI (Prod)
+        run: |
+          cd ui && make \
+            DOCKERHUB_NAMESPACE=${{ secrets.DOCKERHUB_NAMESPACE }} \
+            IMAGE_TAG=${{ steps.vars.outputs.tag_name }} \
+            VITE_APP_VERSION=${{ steps.vars.outputs.tag_name }} \
+            VITE_API_BASE_URL=https://api.my-solid-app.com \
+            docker_build docker_push
+
+      - name: Build & Push API/Tasks (Prod)
+        run: |
+          cd api && make \
+            DOCKERHUB_NAMESPACE=${{ secrets.DOCKERHUB_NAMESPACE }} \
+            IMAGE_TAG=${{ steps.vars.outputs.tag_name }} \
+            docker_build_api docker_push_api \
+            docker_build_tasks docker_push_tasks
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: docker-build-and-push
+    env:
+      NAMESPACE: my-solid-app-prod
+      TAG: ${{ needs.docker-build-and-push.outputs.tag_name }}
+    steps:
+      - name: Setup
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_PROD }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Create Dockerhub Secret
+        run: |
+          kubectl create secret docker-registry my-solid-app-dockerhub \
+            --docker-username=${{ secrets.DOCKERHUB_USERNAME }} \
+            --docker-password=${{ secrets.DOCKERHUB_TOKEN }} \
+            --docker-email="<your-email>" \
+            -n ${NAMESPACE} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to prod
+        env:
+          MY_SOLID_APP_SECRET_KEY: ${{ secrets.MY_SOLID_APP_SECRET_KEY }}
+          MY_SOLID_APP_FERNET_SECRET_KEY: ${{ secrets.MY_SOLID_APP_FERNET_SECRET_KEY }}
+          MY_SOLID_APP_DB_USER: ${{ secrets.MY_SOLID_APP_DB_USER }}
+          MY_SOLID_APP_DB_PASSWORD: ${{ secrets.MY_SOLID_APP_DB_PASSWORD }}
+          MY_SOLID_APP_MAIL_SERVER: ${{ secrets.MY_SOLID_APP_MAIL_SERVER }}
+          MY_SOLID_APP_MAIL_USERNAME: ${{ secrets.MY_SOLID_APP_MAIL_USERNAME }}
+          MY_SOLID_APP_MAIL_PASSWORD: ${{ secrets.MY_SOLID_APP_MAIL_PASSWORD }}
+          MY_SOLID_APP_MAIL_DEFAULT_SENDER: ${{ secrets.MY_SOLID_APP_MAIL_DEFAULT_SENDER }}
+        run: |
+          cd config/k8s/overlays/prod
+
+          envsubst < kustomization.yaml > kustomization.tmp.yaml
+          mv kustomization.tmp.yaml kustomization.yaml
+
+          kustomize edit set image bramdewit/my-solid-app-api=bramdewit/my-solid-app-api:${{ env.TAG }}
+          kustomize edit set image bramdewit/my-solid-app-tasks=bramdewit/my-solid-app-tasks:${{ env.TAG }}
+          kustomize edit set image bramdewit/my-solid-app-ui=bramdewit/my-solid-app-ui:${{ env.TAG }}
+
+          kubectl apply -k .
+
+      - name: Verify rollouts
+        run: |
+          kubectl rollout status deployment/my-solid-app-ui -n ${NAMESPACE}
+          kubectl rollout status deployment/my-solid-app-api -n ${NAMESPACE}
+          kubectl rollout status deployment/my-solid-app-tasks -n ${NAMESPACE}
+
+      - name: Run DB migrations
+        run: |
+          kubectl exec deploy/my-solid-app-api -n ${NAMESPACE} -- make db_upgrade
