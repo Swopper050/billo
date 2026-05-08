@@ -11,6 +11,19 @@ import {
   PaginatedInvoices,
   PaymentMethodAttributes,
 } from './models/Billing'
+import {
+  OrganizationAttributes,
+  OrganizationInput,
+  PersonAttributes,
+  PersonInput,
+} from './models/Contacts'
+import {
+  CompanySettingsAttributes,
+  CompanySettingsInput,
+  InvoiceAttributes,
+  InvoiceInput,
+  InvoiceListItemAttributes,
+} from './models/Invoicing'
 
 export interface ErrorData {
   error: number
@@ -335,6 +348,145 @@ export function getInvoiceDownloadUrl(
   return resolveUrl(
     `/api/workspaces/${workspaceId}/billing/invoices/${invoiceId}/download`
   )
+}
+
+// Contacts: Organizations
+
+export async function listOrganizations(
+  workspaceId: number
+): Promise<OrganizationAttributes[]> {
+  return get(`/api/workspaces/${workspaceId}/organizations`).then((r) =>
+    r.json()
+  )
+}
+
+export async function createOrganization(
+  workspaceId: number,
+  data: OrganizationInput
+): Promise<OrganizationAttributes> {
+  return post(`/api/workspaces/${workspaceId}/organizations`, data).then((r) =>
+    r.json()
+  )
+}
+
+export async function updateOrganization(
+  workspaceId: number,
+  id: number,
+  data: OrganizationInput
+): Promise<OrganizationAttributes> {
+  return put(`/api/workspaces/${workspaceId}/organizations/${id}`, data).then(
+    (r) => r.json()
+  )
+}
+
+export async function deleteOrganization(
+  workspaceId: number,
+  id: number
+): Promise<void> {
+  await _delete(`/api/workspaces/${workspaceId}/organizations/${id}`)
+}
+
+// Contacts: People
+
+export async function listPeople(
+  workspaceId: number
+): Promise<PersonAttributes[]> {
+  return get(`/api/workspaces/${workspaceId}/people`).then((r) => r.json())
+}
+
+export async function createPerson(
+  workspaceId: number,
+  data: PersonInput
+): Promise<PersonAttributes> {
+  return post(`/api/workspaces/${workspaceId}/people`, data).then((r) =>
+    r.json()
+  )
+}
+
+export async function updatePerson(
+  workspaceId: number,
+  id: number,
+  data: PersonInput
+): Promise<PersonAttributes> {
+  return put(`/api/workspaces/${workspaceId}/people/${id}`, data).then((r) =>
+    r.json()
+  )
+}
+
+export async function deletePerson(
+  workspaceId: number,
+  id: number
+): Promise<void> {
+  await _delete(`/api/workspaces/${workspaceId}/people/${id}`)
+}
+
+// Company settings
+
+export async function getCompanySettings(
+  workspaceId: number
+): Promise<CompanySettingsAttributes> {
+  return get(`/api/workspaces/${workspaceId}/company-settings`).then((r) =>
+    r.json()
+  )
+}
+
+export async function updateCompanySettings(
+  workspaceId: number,
+  data: Partial<CompanySettingsInput>
+): Promise<CompanySettingsAttributes> {
+  return put(`/api/workspaces/${workspaceId}/company-settings`, data).then(
+    (r) => r.json()
+  )
+}
+
+// Invoices (the user-facing kind, sent to klanten)
+
+export async function listInvoices(
+  workspaceId: number
+): Promise<InvoiceListItemAttributes[]> {
+  return get(`/api/workspaces/${workspaceId}/invoices`).then((r) => r.json())
+}
+
+export async function getInvoice(
+  workspaceId: number,
+  id: number
+): Promise<InvoiceAttributes> {
+  return get(`/api/workspaces/${workspaceId}/invoices/${id}`).then((r) =>
+    r.json()
+  )
+}
+
+export async function createInvoice(
+  workspaceId: number,
+  data: InvoiceInput
+): Promise<InvoiceAttributes> {
+  return post(`/api/workspaces/${workspaceId}/invoices`, data).then((r) =>
+    r.json()
+  )
+}
+
+export async function updateInvoice(
+  workspaceId: number,
+  id: number,
+  data: InvoiceInput
+): Promise<InvoiceAttributes> {
+  return put(`/api/workspaces/${workspaceId}/invoices/${id}`, data).then((r) =>
+    r.json()
+  )
+}
+
+export async function deleteInvoice(
+  workspaceId: number,
+  id: number
+): Promise<void> {
+  await _delete(`/api/workspaces/${workspaceId}/invoices/${id}`)
+}
+
+export function getCustomerInvoicePdfUrl(
+  workspaceId: number,
+  invoiceId: number
+): string {
+  return resolveUrl(`/api/workspaces/${workspaceId}/invoices/${invoiceId}/pdf`)
 }
 
 // HTTP helpers
