@@ -146,7 +146,7 @@ function RegisterForm(): JSXElement {
                     />
                   </svg>
                 </div>
-                <span class="register-logo-text">{t('my_solid_app')}</span>
+                <span class="register-logo-text">{t('billo')}</span>
               </>
             }
           >

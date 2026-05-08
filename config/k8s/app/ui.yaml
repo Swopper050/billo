@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-solid-app-ui
+  name: billo-ui
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-solid-app-ui
+      app: billo-ui
   template:
     metadata:
       labels:
-        app: my-solid-app-ui
+        app: billo-ui
     spec:
       imagePullSecrets:
-        - name: my-solid-app-dockerhub
+        - name: billo-dockerhub
       containers:
-        - name: my-solid-app-ui
-          image: bramdewit/my-solid-app-ui
+        - name: billo-ui
+          image: bramdewit/billo-ui
           ports:
             - containerPort: 80
           resources:
@@ -31,11 +31,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-solid-app-ui
+  name: billo-ui
 spec:
   type: ClusterIP
   selector:
-    app: my-solid-app-ui
+    app: billo-ui
   ports:
     - port: 80
       targetPort: 80
@@ -44,7 +44,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: my-solid-app-ui
+  name: billo-ui
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-http01
 spec:
@@ -52,7 +52,7 @@ spec:
   tls:
     - hosts:
         - HOST_PLACEHOLDER
-      secretName: my-solid-app-ui-tls
+      secretName: billo-ui-tls
   rules:
     - host: HOST_PLACEHOLDER
       http:
@@ -61,6 +61,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: my-solid-app-ui
+                name: billo-ui
                 port:
                   number: 80

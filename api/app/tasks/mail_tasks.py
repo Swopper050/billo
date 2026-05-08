@@ -6,8 +6,8 @@ from celery.utils.log import get_task_logger
 from flask_mail import Message
 
 from app.config import (
-    MY_SOLID_APP_FRONTEND_URL,
-    MY_SOLID_APP_PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
+    BILLO_FRONTEND_URL,
+    BILLO_PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
 )
 from app.extensions import mail
 
@@ -17,7 +17,7 @@ logger = get_task_logger(__name__)
 @shared_task(ignore_result=True)
 def send_forgot_password_email(*, receiver: str, reset_token: str):
     reset_link = (
-        f"{MY_SOLID_APP_FRONTEND_URL}/reset-password?"
+        f"{BILLO_FRONTEND_URL}/reset-password?"
         f"email={receiver}&reset_token={reset_token}"
     )
 
@@ -26,11 +26,11 @@ def send_forgot_password_email(*, receiver: str, reset_token: str):
 
     html_content = Template(html_content).safe_substitute(
         reset_link=reset_link,
-        reset_hours=MY_SOLID_APP_PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
+        reset_hours=BILLO_PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
     )
 
     message = Message(
-        subject="🛁 MySolidApp - Password reset",
+        subject="🛁 Billo - Password reset",
         recipients=[receiver],
         html=html_content,
     )
@@ -41,7 +41,7 @@ def send_forgot_password_email(*, receiver: str, reset_token: str):
 @shared_task(ignore_result=True)
 def send_email_verification_email(*, receiver: str, verification_token: str):
     verification_link = (
-        f"{MY_SOLID_APP_FRONTEND_URL}/verify-email?"
+        f"{BILLO_FRONTEND_URL}/verify-email?"
         f"email={receiver}&verification_token={verification_token}"
     )
 
@@ -53,7 +53,7 @@ def send_email_verification_email(*, receiver: str, verification_token: str):
     )
 
     message = Message(
-        subject="🛁 MySolidApp - Email verification",
+        subject="🛁 Billo - Email verification",
         recipients=[receiver],
         html=html_content,
     )
@@ -71,7 +71,7 @@ def send_workspace_invitation_email(
     invitation_token: str,
 ):
     invitation_link = (
-        f"{MY_SOLID_APP_FRONTEND_URL}/accept-invitation?"
+        f"{BILLO_FRONTEND_URL}/accept-invitation?"
         f"invitation_token={urllib.parse.quote(invitation_token)}"
     )
 
@@ -97,7 +97,7 @@ def send_workspace_invitation_new_user_email(
     invitation_token: str,
 ):
     register_link = (
-        f"{MY_SOLID_APP_FRONTEND_URL}/register?"
+        f"{BILLO_FRONTEND_URL}/register?"
         f"invitation_token={urllib.parse.quote(invitation_token)}"
     )
 

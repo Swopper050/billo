@@ -154,7 +154,7 @@ export const dict = {
   logout: 'Logout',
   make_this_user_an_admin: 'Make this user an admin',
   members: 'Members',
-  my_solid_app: 'My solid app',
+  billo: 'Billo',
   name: 'Name',
   name_placeholder: 'Your name',
   new_password: 'New password',

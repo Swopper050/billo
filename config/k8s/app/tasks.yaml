@@ -1,27 +1,27 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-solid-app-tasks
+  name: billo-tasks
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-solid-app-tasks
+      app: billo-tasks
   template:
     metadata:
       labels:
-        app: my-solid-app-tasks
+        app: billo-tasks
     spec:
       imagePullSecrets:
-        - name: my-solid-app-dockerhub
+        - name: billo-dockerhub
       containers:
-        - name: my-solid-app-tasks
-          image: bramdewit/my-solid-app-tasks
+        - name: billo-tasks
+          image: bramdewit/billo-tasks
           envFrom:
             - configMapRef:
-                name: my-solid-app-backend-config
+                name: billo-backend-config
             - secretRef:
-                name: my-solid-app-backend-secrets
+                name: billo-backend-secrets
           resources:
             requests:
               cpu: "150m"

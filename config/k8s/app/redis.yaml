@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-solid-app-redis
+  name: billo-redis
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-solid-app-redis
+      app: billo-redis
   template:
     metadata:
       labels:
-        app: my-solid-app-redis
+        app: billo-redis
     spec:
       containers:
         - name: redis
@@ -30,11 +30,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-solid-app-redis
+  name: billo-redis
 spec:
   type: ClusterIP
   selector:
-    app: my-solid-app-redis
+    app: billo-redis
   ports:
     - port: 6379
       targetPort: 6379

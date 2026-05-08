@@ -1,27 +1,27 @@
 services:
   db:
     image: mariadb:latest
-    container_name: my-solid-app-mariadb
+    container_name: billo-mariadb
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: my_solid_app_root_password
-      MYSQL_DATABASE: my_solid_app_db
-      MYSQL_USER: my_solid_app_user
-      MYSQL_PASSWORD: my_solid_app_password
+      MYSQL_ROOT_PASSWORD: billo_root_password
+      MYSQL_DATABASE: billo_db
+      MYSQL_USER: billo_user
+      MYSQL_PASSWORD: billo_password
 
   redis:
     image: redis:latest
-    container_name: my-solid-app-redis
+    container_name: billo-redis
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes
 
   mail:
     image: maildev/maildev
-    container_name: my-solid-app-maildev
+    container_name: billo-maildev
     command:
-      - "--incoming-user=mysolidapp@mail.com"
+      - "--incoming-user=billo@mail.com"
       - "--incoming-pass=12345678"
     ports:
       - "1080:1080"
@@ -29,7 +29,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: my-solid-app-minio
+    container_name: billo-minio
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"

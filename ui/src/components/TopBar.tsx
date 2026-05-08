@@ -33,7 +33,7 @@ export function TopBar(): JSXElement {
 
         <div class="flex-1 text-center md:text-left">
           <A class="btn btn-ghost text-xl" href="">
-            My solid app
+            Billo
           </A>
         </div>
 
@@ -79,7 +79,7 @@ export function TopBar(): JSXElement {
         <div class="flex flex-col h-full p-4">
           <div class="flex justify-between items-center mb-6">
             <A class="text-xl font-bold" href="">
-              My solid app
+              Billo
             </A>
             <IconButton
               icon="fa-solid fa-xmark"

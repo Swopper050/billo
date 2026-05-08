@@ -168,7 +168,7 @@ export const dict: Translations = {
   logout: 'Logout',
   make_this_user_an_admin: 'Maak deze gebruiker een admin',
   members: 'Leden',
-  my_solid_app: 'My solid app',
+  billo: 'Billo',
   name: 'Naam',
   name_placeholder: 'Je naam',
   new_password: 'Nieuw wachtwoord',

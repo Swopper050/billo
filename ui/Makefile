@@ -59,10 +59,10 @@ docker_build: ## Build a docker container and tag it
 	docker build \
 		--build-arg VITE_APP_VERSION=$(VITE_APP_VERSION) \
 		--build-arg VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
-		-t $(DOCKERHUB_NAMESPACE)/my-solid-app-ui:$(IMAGE_TAG) \
+		-t $(DOCKERHUB_NAMESPACE)/billo-ui:$(IMAGE_TAG) \
 		.
 
 docker_push: ## Push the docker container with the specified tag
-	docker push $(DOCKERHUB_NAMESPACE)/my-solid-app-ui:$(IMAGE_TAG)
+	docker push $(DOCKERHUB_NAMESPACE)/billo-ui:$(IMAGE_TAG)
 
 .PHONY: cypress

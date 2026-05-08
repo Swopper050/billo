@@ -105,7 +105,7 @@ function LoginForm(): JSXElement {
               />
             </svg>
           </div>
-          <span class="register-logo-text">{t('my_solid_app')}</span>
+          <span class="register-logo-text">{t('billo')}</span>
         </A>
 
         <A href={registerHref()} class="register-topbar-link">

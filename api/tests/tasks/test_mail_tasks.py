@@ -16,7 +16,7 @@ class TestMailTasks:
                 receiver=user.email, verification_token=user_token
             )
             assert len(outbox) == 1
-            assert outbox[0].subject == "🛁 MySolidApp - Email verification"
+            assert outbox[0].subject == "🛁 Billo - Email verification"
             assert outbox[0].recipients == [user.email]
             assert outbox[0].html is not None
             token = re.search(r"verification_token=([\w-]+)", outbox[0].html).group(1)
@@ -29,7 +29,7 @@ class TestMailTasks:
         with mail.record_messages() as outbox:
             send_forgot_password_email(receiver=user.email, reset_token=user_token)
             assert len(outbox) == 1
-            assert outbox[0].subject == "🛁 MySolidApp - Password reset"
+            assert outbox[0].subject == "🛁 Billo - Password reset"
             assert outbox[0].recipients == [user.email]
             assert outbox[0].html is not None
             token = re.search(r"reset_token=([\w-]+)", outbox[0].html).group(1)

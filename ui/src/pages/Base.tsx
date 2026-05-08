@@ -71,7 +71,7 @@ export function BasePage(props: BasePageProps): JSXElement {
                 href="/home"
                 onClick={() => setDrawerOpen(false)}
               >
-                {t('my_solid_app')}
+                {t('billo')}
               </A>
               <IconButton
                 icon="fa-solid fa-xmark"

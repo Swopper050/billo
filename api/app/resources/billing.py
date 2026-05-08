@@ -9,9 +9,9 @@ from flask_restx import Resource
 from fpdf import FPDF, XPos, YPos
 
 from app.config import (
-    MY_SOLID_APP_API_URL,
-    MY_SOLID_APP_FRONTEND_URL,
-    MY_SOLID_APP_MOLLIE_API_KEY,
+    BILLO_API_URL,
+    BILLO_FRONTEND_URL,
+    BILLO_MOLLIE_API_KEY,
 )
 from app.db.billing import (
     FREE_TRIAL_DAYS,
@@ -83,7 +83,7 @@ def _get_mollie_client():
     from mollie.api.client import Client
 
     client = Client()
-    client.set_api_key(MY_SOLID_APP_MOLLIE_API_KEY)
+    client.set_api_key(BILLO_MOLLIE_API_KEY)
     return client
 
 
@@ -663,9 +663,9 @@ class WorkspaceBillingCheckout(Resource):
                     "customerId": sub.mollie_customer_id,
                     "sequenceType": "first",
                     "description": f"Subscription - {seats} seat{'s' if seats != 1 else ''}",
-                    "redirectUrl": f"{MY_SOLID_APP_FRONTEND_URL}/dashboard?billing_status=success&workspace_id={workspace_id}",
-                    "cancelUrl": f"{MY_SOLID_APP_FRONTEND_URL}/dashboard?billing_status=cancelled&workspace_id={workspace_id}",
-                    "webhookUrl": f"{MY_SOLID_APP_API_URL}/billing/webhook",
+                    "redirectUrl": f"{BILLO_FRONTEND_URL}/dashboard?billing_status=success&workspace_id={workspace_id}",
+                    "cancelUrl": f"{BILLO_FRONTEND_URL}/dashboard?billing_status=cancelled&workspace_id={workspace_id}",
+                    "webhookUrl": f"{BILLO_API_URL}/billing/webhook",
                     "metadata": {
                         "workspace_id": str(workspace_id),
                         "seats": str(seats),
@@ -876,9 +876,9 @@ class WorkspaceBillingUpdatePaymentMethod(Resource):
                     "customerId": customer["id"],
                     "sequenceType": "first",
                     "description": "Update payment method",
-                    "redirectUrl": f"{MY_SOLID_APP_FRONTEND_URL}/dashboard?billing_status=method_updated&workspace_id={workspace_id}",
-                    "cancelUrl": f"{MY_SOLID_APP_FRONTEND_URL}/dashboard?billing_status=cancelled&workspace_id={workspace_id}",
-                    "webhookUrl": f"{MY_SOLID_APP_API_URL}/billing/webhook",
+                    "redirectUrl": f"{BILLO_FRONTEND_URL}/dashboard?billing_status=method_updated&workspace_id={workspace_id}",
+                    "cancelUrl": f"{BILLO_FRONTEND_URL}/dashboard?billing_status=cancelled&workspace_id={workspace_id}",
+                    "webhookUrl": f"{BILLO_API_URL}/billing/webhook",
                     "metadata": {
                         "workspace_id": str(workspace_id),
                         "type": "payment_method_update",
@@ -1091,7 +1091,7 @@ def _create_mollie_subscription(
                 "interval": interval,
                 "startDate": start_date,
                 "description": description,
-                "webhookUrl": f"{MY_SOLID_APP_API_URL}/billing/webhook",
+                "webhookUrl": f"{BILLO_API_URL}/billing/webhook",
                 "metadata": {
                     "workspace_id": str(sub.workspace_id),
                     "seats": str(seats),

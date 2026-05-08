@@ -3,68 +3,68 @@ kind: Kustomization
 resources:
   - ../../app
 
-namespace: my-solid-app-prod
+namespace: billo-prod
 
 patches:
   - target:
       kind: Deployment
-      name: my-solid-app-ui
+      name: billo-ui
     patch: |-
       - op: replace
         path: /spec/replicas
         value: 2
   - target:
       kind: Ingress
-      name: my-solid-app-ui
+      name: billo-ui
     patch: |-
       - op: replace
         path: /spec/tls/0/hosts/0
-        value: app.my-solid-app.com
+        value: app.billo.com
       - op: replace
         path: /spec/rules/0/host
-        value: app.my-solid-app.com
+        value: app.billo.com
   - target:
       kind: Deployment
-      name: my-solid-app-api
+      name: billo-api
     patch: |-
       - op: replace
         path: /spec/replicas
         value: 2
   - target:
       kind: Ingress
-      name: my-solid-app-api
+      name: billo-api
     patch: |-
       - op: replace
         path: /spec/tls/0/hosts/0
-        value: api.my-solid-app.com
+        value: api.billo.com
       - op: replace
         path: /spec/rules/0/host
-        value: api.my-solid-app.com
+        value: api.billo.com
 
 configMapGenerator:
-  - name: my-solid-app-backend-config
+  - name: billo-backend-config
     behavior: merge
     literals:
-      - MY_SOLID_APP_FRONTEND_URL="https://app.my-solid-app.com"
-      - MY_SOLID_APP_API_URL="https://api.my-solid-app.com"
-      - MY_SOLID_APP_DB_NAME="my_solid_app_db"
-      - MY_SOLID_APP_DB_HOST="<vps_ip>"
-      - MY_SOLID_APP_MINIO_HOST="<object-storage-host>"
-      - MY_SOLID_APP_MINIO_PORT=""
-      - MY_SOLID_APP_MINIO_BUCKET="my-solid-app"
-      - MY_SOLID_APP_MINIO_SECURE="True"
+      - BILLO_FRONTEND_URL="https://app.billo.com"
+      - BILLO_API_URL="https://api.billo.com"
+      - BILLO_DB_NAME="billo_db"
+      - BILLO_DB_HOST="<vps_ip>"
+      - BILLO_MINIO_HOST="<object-storage-host>"
+      - BILLO_MINIO_PORT=""
+      - BILLO_MINIO_BUCKET="billo"
+      - BILLO_MINIO_SECURE="True"
 
 secretGenerator:
-  - name: my-solid-app-backend-secrets
+  - name: billo-backend-secrets
     literals:
-      - MY_SOLID_APP_SECRET_KEY=${MY_SOLID_APP_SECRET_KEY}
-      - MY_SOLID_APP_FERNET_SECRET_KEY=${MY_SOLID_APP_FERNET_SECRET_KEY}
-      - MY_SOLID_APP_DB_USER=${MY_SOLID_APP_DB_USER}
-      - MY_SOLID_APP_DB_PASSWORD=${MY_SOLID_APP_DB_PASSWORD}
-      - MY_SOLID_APP_MAIL_SERVER=${MY_SOLID_APP_MAIL_SERVER}
-      - MY_SOLID_APP_MAIL_USERNAME=${MY_SOLID_APP_MAIL_USERNAME}
-      - MY_SOLID_APP_MAIL_PASSWORD=${MY_SOLID_APP_MAIL_PASSWORD}
-      - MY_SOLID_APP_MAIL_DEFAULT_SENDER=${MY_SOLID_APP_MAIL_DEFAULT_SENDER}
-      - MY_SOLID_APP_MOLLIE_API_KEY=${MY_SOLID_APP_MOLLIE_API_KEY}
-      - MY_SOLID_APP_MINIO_USER=${MY_SOLID_APP_MINIO_USER}
-      - MY_SOLID_APP_MINIO_PASSWORD=${MY_SOLID_APP_MINIO_PASSWORD}
+      - BILLO_SECRET_KEY=${BILLO_SECRET_KEY}
+      - BILLO_FERNET_SECRET_KEY=${BILLO_FERNET_SECRET_KEY}
+      - BILLO_DB_USER=${BILLO_DB_USER}
+      - BILLO_DB_PASSWORD=${BILLO_DB_PASSWORD}
+      - BILLO_MAIL_SERVER=${BILLO_MAIL_SERVER}
+      - BILLO_MAIL_USERNAME=${BILLO_MAIL_USERNAME}
+      - BILLO_MAIL_PASSWORD=${BILLO_MAIL_PASSWORD}
+      - BILLO_MAIL_DEFAULT_SENDER=${BILLO_MAIL_DEFAULT_SENDER}
+      - BILLO_MOLLIE_API_KEY=${BILLO_MOLLIE_API_KEY}
+      - BILLO_MINIO_USER=${BILLO_MINIO_USER}
+      - BILLO_MINIO_PASSWORD=${BILLO_MINIO_PASSWORD}

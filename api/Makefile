@@ -71,25 +71,25 @@ db_upgrade: ## Upgrade database
 	flask --app server db upgrade
 
 docker_build_api: ## Build the api docker container and tag it
-	docker build -t $(DOCKERHUB_NAMESPACE)/my-solid-app-api:${IMAGE_TAG} -f Dockerfile.api .
+	docker build -t $(DOCKERHUB_NAMESPACE)/billo-api:${IMAGE_TAG} -f Dockerfile.api .
 
 docker_build_tasks: ## Build the tasks docker container and tag it
-	docker build -t $(DOCKERHUB_NAMESPACE)/my-solid-app-tasks:${IMAGE_TAG} -f Dockerfile.tasks .
+	docker build -t $(DOCKERHUB_NAMESPACE)/billo-tasks:${IMAGE_TAG} -f Dockerfile.tasks .
 
 docker_push_api: ## Push the api docker container with the specified tag
-	docker push $(DOCKERHUB_NAMESPACE)/my-solid-app-api:${IMAGE_TAG}
+	docker push $(DOCKERHUB_NAMESPACE)/billo-api:${IMAGE_TAG}
 
 docker_push_tasks: ## Push the tasks docker container with the specified tag
-	docker push $(DOCKERHUB_NAMESPACE)/my-solid-app-tasks:${IMAGE_TAG}
+	docker push $(DOCKERHUB_NAMESPACE)/billo-tasks:${IMAGE_TAG}
 
 docker_run_latest: ## Run the api as a docker container
 	docker run \
-		--name my-solid-app-api \
+		--name billo-api \
 		--network host \
-		-e MY_SOLID_APP_DB_NAME=$(DB_NAME) \
-		-e MY_SOLID_APP_DB_USER=$(DB_USER) \
-		-e MY_SOLID_APP_DB_PASSWORD=$(DB_PASSWORD) \
-		-e MY_SOLID_APP_DB_HOST=$(DB_HOST) \
-		-e MY_SOLID_APP_DB_PORT=$(DB_PORT) \
+		-e BILLO_DB_NAME=$(DB_NAME) \
+		-e BILLO_DB_USER=$(DB_USER) \
+		-e BILLO_DB_PASSWORD=$(DB_PASSWORD) \
+		-e BILLO_DB_HOST=$(DB_HOST) \
+		-e BILLO_DB_PORT=$(DB_PORT) \
 		-d \
-		$(DOCKERHUB_NAMESPACE)/my-solid-app-api:latest
+		$(DOCKERHUB_NAMESPACE)/billo-api:latest

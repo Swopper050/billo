@@ -1,29 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-solid-app-api
+  name: billo-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-solid-app-api
+      app: billo-api
   template:
     metadata:
       labels:
-        app: my-solid-app-api
+        app: billo-api
     spec:
       imagePullSecrets:
-        - name: my-solid-app-dockerhub
+        - name: billo-dockerhub
       containers:
-        - name: my-solid-app-api
-          image: bramdewit/my-solid-app-api
+        - name: billo-api
+          image: bramdewit/billo-api
           ports:
             - containerPort: 5000
           envFrom:
             - configMapRef:
-                name: my-solid-app-backend-config
+                name: billo-backend-config
             - secretRef:
-                name: my-solid-app-backend-secrets
+                name: billo-backend-secrets
           resources:
             requests:
               cpu: "150m"
@@ -36,11 +36,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-solid-app-api
+  name: billo-api
 spec:
   type: ClusterIP
   selector:
-    app: my-solid-app-api
+    app: billo-api
   ports:
     - port: 5000
       targetPort: 5000
@@ -49,7 +49,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: my-solid-app-api
+  name: billo-api
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-http01
 spec:
@@ -57,7 +57,7 @@ spec:
   tls:
     - hosts:
         - HOST_PLACEHOLDER
-      secretName: my-solid-app-api-tls
+      secretName: billo-api-tls
   rules:
     - host: HOST_PLACEHOLDER
       http:
@@ -66,6 +66,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: my-solid-app-api
+                name: billo-api
                 port:
                   number: 5000

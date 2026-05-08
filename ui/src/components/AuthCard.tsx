@@ -18,7 +18,7 @@ export function AuthCard(props: AuthCardProps): JSXElement {
 
       <div class="bg-base-100 border border-base-300 rounded-xl p-10 w-full max-w-sm shadow-sm">
         <div class="text-center text-xl font-medium tracking-tight mb-7">
-          My solid app<span class="text-primary">.</span>
+          Billo<span class="text-primary">.</span>
         </div>
 
         <h1 class="text-base font-medium text-base-content mb-1">

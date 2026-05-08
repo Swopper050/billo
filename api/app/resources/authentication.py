@@ -7,7 +7,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from flask_restx import Resource
 from marshmallow import Schema, fields
 
-from app.config import MY_SOLID_APP_PASSWORD_RESET_TOKEN_EXPIRE_HOURS
+from app.config import BILLO_PASSWORD_RESET_TOKEN_EXPIRE_HOURS
 from app.db.user import User, UserSchema
 from app.errors import APIError, APIErrorEnum
 from app.extensions import api, db, login_manager
@@ -221,7 +221,7 @@ class ResetPassword(Resource):
             )
 
         if (int(time.time()) - user.password_reset_time) > (
-            MY_SOLID_APP_PASSWORD_RESET_TOKEN_EXPIRE_HOURS * 3600
+            BILLO_PASSWORD_RESET_TOKEN_EXPIRE_HOURS * 3600
         ):
             raise APIError(
                 APIErrorEnum.token_expired,

@@ -25,7 +25,7 @@ class Generate2FASecret(Resource):
 
         totp = pyotp.TOTP(pyotp.random_base32())
 
-        uri = totp.provisioning_uri(name=current_user.email, issuer_name="MySolidApp")
+        uri = totp.provisioning_uri(name=current_user.email, issuer_name="Billo")
         qr = qrcode.make(uri)
 
         buffered = BytesIO()

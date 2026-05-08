@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-solid-app-tasks-beat
+  name: billo-tasks-beat
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-solid-app-tasks-beat
+      app: billo-tasks-beat
   template:
     metadata:
       labels:
-        app: my-solid-app-tasks-beat
+        app: billo-tasks-beat
     spec:
       imagePullSecrets:
-        - name: my-solid-app-dockerhub
+        - name: billo-dockerhub
       containers:
-        - name: my-solid-app-tasks-beat
-          image: <dockerhub_namespace>/my-solid-app-tasks
+        - name: billo-tasks-beat
+          image: <dockerhub_namespace>/billo-tasks
           command: ["celery"]
           args:
             [
@@ -28,9 +28,9 @@ spec:
             ]
           envFrom:
             - configMapRef:
-                name: my-solid-app-backend-config
+                name: billo-backend-config
             - secretRef:
-                name: my-solid-app-backend-secrets
+                name: billo-backend-secrets
           resources:
             requests:
               cpu: "50m"

@@ -60,15 +60,15 @@ In order to run the project locally you need to:
 - [Install Python 3.12](https://www.python.org/downloads/)
 - [Install docker](https://docs.docker.com/engine/install/) together with [docker compose](https://docs.docker.com/compose/)
 
-In order to replace all instances and variants of 'My solid app', 'MySolidApp', 'my-solid-app', 'my_solid_app', 'mysolidapp' and 'MY_SOLID_APP', run the following commands:
+In order to replace all instances and variants of 'Billo', 'Billo', 'billo', 'billo', 'billo' and 'BILLO', run the following commands:
 
 ```bash
 find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/My\ solid\ app/Your\ app/g' {} \;
-find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/MySolidApp/YourApp/g' {} \;
-find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/my-solid-app/your-app/g' {} \;
-find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/my_solid_app/your_app/g' {} \;
-find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/mysolidapp/yourapp/g' {} \;
-find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/MY_SOLID_APP/YOUR_APP/g' {} \;
+find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/Billo/YourApp/g' {} \;
+find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/billo/your-app/g' {} \;
+find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/billo/your_app/g' {} \;
+find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/billo/yourapp/g' {} \;
+find . -type f -name "*" -not -path "ui/node_modules/*" -not -path "api/.env/*" -exec sed -i 's/BILLO/YOUR_APP/g' {} \;
 ```
 
 When you have all of this installed, setup all docker services:
@@ -102,4 +102,4 @@ Now you can visit the local web application at http://localhost:5173
 
 This project currently supports deployment onto a single VPS, i.e. frontend, backend and database all running on that VPS, for both staging and production. For more information on how to do this, see the [deployment docs](docs/web_deployment.md).
 
-You can visit the running staging and production version of this application at [https://my-solid-app.nl](https://my-solid-app.nl) and [https://staging.my-solid-app.nl:8443](https://staging.my-solid-app.nl:8443).
+You can visit the running staging and production version of this application at [https://billo.nl](https://billo.nl) and [https://staging.billo.nl:8443](https://staging.billo.nl:8443).

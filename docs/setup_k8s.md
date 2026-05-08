@@ -47,9 +47,9 @@ sudo mysql
 Now add the database user for either staging or prod:
 
 ```mysql
-CREATE DATABASE my_solid_app_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'my_solid_app'@'%' IDENTIFIED BY '<PASSWORD>';
-GRANT ALL PRIVILEGES ON my_solid_app_db.* TO 'my_solid_app'@'%';
+CREATE DATABASE billo_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'billo'@'%' IDENTIFIED BY '<PASSWORD>';
+GRANT ALL PRIVILEGES ON billo_db.* TO 'billo'@'%';
 FLUSH PRIVILEGES;
 EXIT;
 ```
@@ -57,9 +57,9 @@ EXIT;
 For staging, do the same with a separate database:
 
 ```mysql
-CREATE DATABASE my_solid_app_staging_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'my_solid_app_staging'@'%' IDENTIFIED BY '<PASSWORD>';
-GRANT ALL PRIVILEGES ON my_solid_app_staging_db.* TO 'my_solid_app_staging'@'%';
+CREATE DATABASE billo_staging_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'billo_staging'@'%' IDENTIFIED BY '<PASSWORD>';
+GRANT ALL PRIVILEGES ON billo_staging_db.* TO 'billo_staging'@'%';
 FLUSH PRIVILEGES;
 EXIT;
 ```
@@ -67,24 +67,24 @@ EXIT;
 To load a backup, first dump from the old database:
 
 ```bash
-docker exec my-solid-app-db-1 sh -c 'mariadb-dump -umy_solid_app -p"<password>" "my_solid_app_db"' > ./my_solid_app.sql
+docker exec billo-db-1 sh -c 'mariadb-dump -ubillo -p"<password>" "billo_db"' > ./billo.sql
 ```
 
 Then load it into the new database:
 
 ```bash
-cp my_solid_app.sql my_solid_app.original.sql
-sed -i 's/utf8mb4_uca1400_ai_ci/utf8mb4_unicode_ci/g' my_solid_app.sql
+cp billo.sql billo.original.sql
+sed -i 's/utf8mb4_uca1400_ai_ci/utf8mb4_unicode_ci/g' billo.sql
 sudo mysql
 ```
 
 ```mysql
-DROP DATABASE IF EXISTS my_solid_app_db;
-CREATE DATABASE my_solid_app_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+DROP DATABASE IF EXISTS billo_db;
+CREATE DATABASE billo_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ```bash
-mysql -u my_solid_app -p -D my_solid_app_db < my_solid_app.sql
+mysql -u billo -p -D billo_db < billo.sql
 ```
 
 ## Setting up the Kubernetes cluster
@@ -94,8 +94,8 @@ mysql -u my_solid_app -p -D my_solid_app_db < my_solid_app.sql
 Apply the namespace manifests once. This only creates the namespaces — it does **not** start any deployments:
 
 ```bash
-kubectl apply -f config/k8s/my-solid-app-prod.yaml
-kubectl apply -f config/k8s/my-solid-app-staging.yaml
+kubectl apply -f config/k8s/billo-prod.yaml
+kubectl apply -f config/k8s/billo-staging.yaml
 ```
 
 The namespaces just need to exist before the first deploy. The actual deployments, services, and ingresses are applied by GitHub Actions (or manually via `kubectl apply -k config/k8s/overlays/staging`) as part of the normal deploy flow.
@@ -106,12 +106,12 @@ Set the actual VPS IP address and your domain names in both overlays before depl
 
 ```yaml
 # config/k8s/overlays/prod/kustomization.yaml
-- MY_SOLID_APP_DB_HOST="<vps_ip>"
-# Also replace app.my-solid-app.com and api.my-solid-app.com with your actual domains
+- BILLO_DB_HOST="<vps_ip>"
+# Also replace app.billo.com and api.billo.com with your actual domains
 
 # config/k8s/overlays/staging/kustomization.yaml
-- MY_SOLID_APP_DB_HOST="<vps_ip>"
-# Also replace staging.app.my-solid-app.com and staging.api.my-solid-app.com with your actual domains
+- BILLO_DB_HOST="<vps_ip>"
+# Also replace staging.app.billo.com and staging.api.billo.com with your actual domains
 ```
 
 Also replace `<dockerhub-namespace>` in `config/k8s/app/*.yaml` with your actual DockerHub namespace.
@@ -133,10 +133,10 @@ Point the following DNS records to your cluster's load balancer IP (`kubectl get
 
 | Domain | Environment |
 |---|---|
-| `app.my-solid-app.com` | Production UI |
-| `api.my-solid-app.com` | Production API |
-| `staging.app.my-solid-app.com` | Staging UI |
-| `staging.api.my-solid-app.com` | Staging API |
+| `app.billo.com` | Production UI |
+| `api.billo.com` | Production API |
+| `staging.app.billo.com` | Staging UI |
+| `staging.api.billo.com` | Staging API |
 
 ## Setting up GitHub Actions
 
@@ -166,29 +166,29 @@ KUBECONFIG_PROD=<base64-encoded kubeconfig>
 **Production:**
 
 ```
-MY_SOLID_APP_SECRET_KEY=<flask_secret_key>
-MY_SOLID_APP_FERNET_SECRET_KEY=<fernet_secret_key>
+BILLO_SECRET_KEY=<flask_secret_key>
+BILLO_FERNET_SECRET_KEY=<fernet_secret_key>
 
-MY_SOLID_APP_DB_USER=<db_user>
-MY_SOLID_APP_DB_PASSWORD=<db_password>
+BILLO_DB_USER=<db_user>
+BILLO_DB_PASSWORD=<db_password>
 
-MY_SOLID_APP_MAIL_SERVER=smtp.server.com
-MY_SOLID_APP_MAIL_USERNAME=<mail_username>
-MY_SOLID_APP_MAIL_PASSWORD=<mail_password>
-MY_SOLID_APP_MAIL_DEFAULT_SENDER=<default_mail_address>
+BILLO_MAIL_SERVER=smtp.server.com
+BILLO_MAIL_USERNAME=<mail_username>
+BILLO_MAIL_PASSWORD=<mail_password>
+BILLO_MAIL_DEFAULT_SENDER=<default_mail_address>
 ```
 
 **Staging:**
 
 ```
-MY_SOLID_APP_STAGING_SECRET_KEY=<flask_secret_key>
-MY_SOLID_APP_STAGING_FERNET_SECRET_KEY=<fernet_secret_key>
+BILLO_STAGING_SECRET_KEY=<flask_secret_key>
+BILLO_STAGING_FERNET_SECRET_KEY=<fernet_secret_key>
 
-MY_SOLID_APP_STAGING_DB_USER=<db_user>
-MY_SOLID_APP_STAGING_DB_PASSWORD=<db_password>
+BILLO_STAGING_DB_USER=<db_user>
+BILLO_STAGING_DB_PASSWORD=<db_password>
 
-MY_SOLID_APP_STAGING_MAIL_SERVER=smtp.server.com
-MY_SOLID_APP_STAGING_MAIL_USERNAME=<mail_username>
-MY_SOLID_APP_STAGING_MAIL_PASSWORD=<mail_password>
-MY_SOLID_APP_STAGING_MAIL_DEFAULT_SENDER=<default_mail_address>
+BILLO_STAGING_MAIL_SERVER=smtp.server.com
+BILLO_STAGING_MAIL_USERNAME=<mail_username>
+BILLO_STAGING_MAIL_PASSWORD=<mail_password>
+BILLO_STAGING_MAIL_DEFAULT_SENDER=<default_mail_address>
 ```

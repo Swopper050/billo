@@ -2,18 +2,18 @@ FROM python:3.13
 
 RUN apt-get update && apt-get -y upgrade && apt-get install -y --no-install-recommends ffmpeg
 
-RUN useradd --create-home my-solid-app
-USER my-solid-app
+RUN useradd --create-home billo
+USER billo
 
-WORKDIR /home/my-solid-app
+WORKDIR /home/billo
 
 RUN python -m venv venv
-ENV PATH="/home/my-solid-app/venv/bin:$PATH"
+ENV PATH="/home/billo/venv/bin:$PATH"
 
-COPY --chown=my-solid-app requirements.txt requirements.txt
+COPY --chown=billo requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
-COPY --chown=my-solid-app . .
+COPY --chown=billo . .
 
 # Run Celery worker
 CMD ["celery", "--app=server.celery_app", "worker", "--loglevel=info"]
