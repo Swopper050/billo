@@ -5,7 +5,6 @@ import { FrozenWorkspaceModal } from '../components/FrozenWorkspaceModal'
 import { IconButton } from '../components/Button'
 import { ProfileMenu } from '../components/ProfileMenu'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
-import { LanguageSelector } from '../components/LanguageSelector'
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher'
 
 import { useLocale } from '../context/LocaleProvider'
@@ -49,7 +48,6 @@ export function BasePage(props: BasePageProps): JSXElement {
           </div>
           <div class="flex-none gap-2">
             <ThemeSwitcher />
-            <LanguageSelector />
             <ProfileMenu />
           </div>
         </div>

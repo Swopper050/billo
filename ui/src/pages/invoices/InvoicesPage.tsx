@@ -22,13 +22,26 @@ function formatDate(value: string | null): string {
   if (!value) return '—'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString()
+  return d.toLocaleDateString('nl-NL')
+}
+
+function currencySymbol(currency: string): string {
+  switch (currency.toUpperCase()) {
+    case 'EUR':
+      return '€'
+    case 'USD':
+      return '$'
+    case 'GBP':
+      return '£'
+    default:
+      return currency
+  }
 }
 
 function formatMoney(amount: string, currency: string): string {
   const value = Number(amount)
-  if (Number.isNaN(value)) return `${currency} ${amount}`
-  return `${currency} ${value.toLocaleString(undefined, {
+  if (Number.isNaN(value)) return `${currencySymbol(currency)} ${amount}`
+  return `${currencySymbol(currency)} ${value.toLocaleString('nl-NL', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`

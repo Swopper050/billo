@@ -36,10 +36,8 @@ import {
 import { BillingTabContent } from '../billing/BillingTabContent'
 import { BillingStatusAttributes } from '../../models/Billing'
 import {
-  WORKSPACE_LANGUAGES,
   WorkspaceAttributes,
   WorkspaceInvitationAttributes,
-  WorkspaceLanguage,
 } from '../../models/Workspace'
 
 type RenameForm = { name: string }
@@ -288,7 +286,7 @@ export function WorkspaceSettingsModal(props: Props): JSXElement {
   )
   const [wsColor, setWsColor] = createSignal<string | null>(null)
   const [wsDescription, setWsDescription] = createSignal('')
-  const [wsLanguage, setWsLanguage] = createSignal<WorkspaceLanguage>('nl')
+  const [wsLanguage, setWsLanguage] = createSignal<'nl'>('nl')
   const [generalSaveResult, setGeneralSaveResult] = createSignal<
     'success' | 'error' | ''
   >('')
@@ -382,7 +380,7 @@ export function WorkspaceSettingsModal(props: Props): JSXElement {
       setValue(renameState, 'name', ws.name)
       setWsColor(ws.color ?? null)
       setWsDescription(ws.context ?? '')
-      setWsLanguage(ws.language ?? 'nl')
+      setWsLanguage('nl')
     }
   })
 
@@ -731,37 +729,6 @@ export function WorkspaceSettingsModal(props: Props): JSXElement {
                           />
                           <p class="text-xs text-base-content/40 mt-1 leading-relaxed">
                             {t('workspace_description_help')}
-                          </p>
-                        </div>
-
-                        {/* Workspace language */}
-                        <div class="mb-5">
-                          <label class="block text-[13px] font-semibold text-base-content mb-2">
-                            {t('workspace_language')}
-                          </label>
-                          <select
-                            class="w-full px-3 py-2.5 border border-base-300 rounded-lg text-sm bg-base-100 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
-                            value={wsLanguage()}
-                            onChange={(e) =>
-                              setWsLanguage(
-                                e.currentTarget.value as WorkspaceLanguage
-                              )
-                            }
-                          >
-                            <For each={WORKSPACE_LANGUAGES}>
-                              {(lang) => (
-                                <option value={lang}>
-                                  {t(
-                                    lang === 'nl'
-                                      ? 'workspace_language_nl'
-                                      : 'workspace_language_en'
-                                  )}
-                                </option>
-                              )}
-                            </For>
-                          </select>
-                          <p class="text-xs text-base-content/40 mt-1 leading-relaxed">
-                            {t('workspace_language_help')}
                           </p>
                         </div>
 

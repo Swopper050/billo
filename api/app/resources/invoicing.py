@@ -388,6 +388,7 @@ def _decode_logo(data_url: str | None) -> tuple[bytes, str] | None:
 
 
 def _latin1(text: str | None) -> str:
+    """Encode for FPDF's standard fonts (cp1252 covers €, plus common quotes)."""
     if text is None:
         return ""
     replacements = {
@@ -400,15 +401,23 @@ def _latin1(text: str | None) -> str:
         "“": '"',
         "”": '"',
         "…": "...",
-        "€": "EUR",
     }
     for char, sub in replacements.items():
         text = text.replace(char, sub)
-    return text.encode("latin-1", errors="replace").decode("latin-1")
+    return text.encode("cp1252", errors="replace").decode("cp1252")
+
+
+_CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
+
+
+def _currency_symbol(currency: str) -> str:
+    return _CURRENCY_SYMBOLS.get(currency.upper(), currency)
 
 
 def _format_money(amount: Decimal, currency: str) -> str:
-    return f"{currency} {amount:,.2f}"
+    # Dutch number formatting: thousands with '.', decimals with ','.
+    formatted = f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return _latin1(f"{_currency_symbol(currency)} {formatted}")
 
 
 def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
@@ -420,18 +429,13 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     margin = 20
     content_w = page_w - 2 * margin
 
-    accent = (28, 184, 126)
     dark = (26, 26, 46)
     gray = (107, 114, 128)
     light_gray = (156, 163, 175)
-    white = (255, 255, 255)
-    bg_light = (249, 250, 251)
     border_color = (229, 231, 235)
+    strong_border = (160, 160, 170)
 
-    pdf.set_fill_color(*accent)
-    pdf.rect(0, 0, page_w, 4, "F")
-
-    header_y = 16
+    header_y = 20
     pdf.set_y(header_y)
 
     logo = _decode_logo(invoice.sender_logo_data_url)
@@ -476,10 +480,10 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
         pdf.cell(100, 4.5, _latin1(line))
         line_y += 4.5
 
-    pdf.set_font("Helvetica", "B", 28)
+    pdf.set_font("Helvetica", "", 28)
     pdf.set_text_color(*dark)
     pdf.set_xy(page_w - margin - 80, header_y - 2)
-    pdf.cell(80, 14, "INVOICE", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(80, 14, "Factuur", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(*gray)
@@ -507,29 +511,30 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     pdf.set_xy(margin, meta_y)
     pdf.set_font("Helvetica", "B", 8)
     pdf.set_text_color(*light_gray)
-    pdf.cell(col_w, 5, "INVOICE DETAILS", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(col_w, 5, "FACTUURGEGEVENS", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     def detail_row(y_offset: float, label: str, value: str) -> None:
         pdf.set_xy(margin, meta_y + y_offset)
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(*gray)
-        pdf.cell(28, 5.5, label)
+        pdf.cell(32, 5.5, label)
         pdf.set_text_color(*dark)
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(col_w - 28, 5.5, _latin1(value))
+        pdf.cell(col_w - 32, 5.5, _latin1(value))
 
+    status_labels = {"draft": "Concept", "sent": "Verzonden", "paid": "Betaald"}
     issue = invoice.issue_date.strftime("%d-%m-%Y") if invoice.issue_date else "-"
     due = invoice.due_date.strftime("%d-%m-%Y") if invoice.due_date else "-"
-    detail_row(8, "Date:", issue)
-    detail_row(15, "Due:", due)
-    detail_row(22, "Status:", invoice.status.upper())
+    detail_row(8, "Factuurdatum:", issue)
+    detail_row(15, "Vervaldatum:", due)
+    detail_row(22, "Status:", status_labels.get(invoice.status, invoice.status))
 
     # Bill to (right)
     bill_x = margin + col_w
     pdf.set_xy(bill_x, meta_y)
     pdf.set_font("Helvetica", "B", 8)
     pdf.set_text_color(*light_gray)
-    pdf.cell(col_w, 5, "BILL TO", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(col_w, 5, "FACTUURADRES", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_xy(bill_x, meta_y + 8)
     pdf.set_font("Helvetica", "B", 10)
@@ -560,16 +565,14 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
 
     if invoice.recipient_vat_number:
         pdf.set_xy(bill_x, bill_y)
-        pdf.cell(col_w, 4.5, _latin1(f"VAT: {invoice.recipient_vat_number}"))
+        pdf.cell(col_w, 4.5, _latin1(f"BTW: {invoice.recipient_vat_number}"))
         bill_y += 4.5
 
     table_top = max(meta_y + 32, bill_y) + 6
     pdf.set_y(table_top)
 
-    # Line items table
+    # Line items table — minimal style: bold header on white, bottom border.
     hdr_h = 9
-    pdf.set_fill_color(*dark)
-    pdf.rect(margin, table_top, content_w, hdr_h, "F")
 
     col_desc = content_w * 0.40
     col_qty = content_w * 0.10
@@ -579,34 +582,35 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     col_amount = content_w * 0.15
 
     pdf.set_xy(margin, table_top)
-    pdf.set_font("Helvetica", "B", 8.5)
-    pdf.set_text_color(*white)
-    pdf.cell(col_desc, hdr_h, "  Description")
-    pdf.cell(col_qty, hdr_h, "Qty", align="R")
-    pdf.cell(col_unit, hdr_h, "Unit Price", align="R")
-    pdf.cell(col_vat_pct, hdr_h, "VAT %", align="R")
-    pdf.cell(col_vat_amt, hdr_h, "VAT", align="R")
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(*dark)
+    pdf.cell(col_desc, hdr_h, "Omschrijving")
+    pdf.cell(col_qty, hdr_h, "Aantal", align="R")
+    pdf.cell(col_unit, hdr_h, "Prijs", align="R")
+    pdf.cell(col_vat_pct, hdr_h, "BTW %", align="R")
+    pdf.cell(col_vat_amt, hdr_h, "BTW", align="R")
     pdf.cell(
         col_amount,
         hdr_h,
-        "Amount  ",
+        "Bedrag",
         align="R",
         new_x=XPos.LMARGIN,
         new_y=YPos.NEXT,
     )
 
+    pdf.set_draw_color(*strong_border)
+    pdf.set_line_width(0.4)
+    pdf.line(margin, table_top + hdr_h, page_w - margin, table_top + hdr_h)
+
     row_y = table_top + hdr_h
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(*dark)
 
-    for index, line in enumerate(invoice.lines):
+    for line in invoice.lines:
         row_h = 9
-        if index % 2 == 0:
-            pdf.set_fill_color(*bg_light)
-            pdf.rect(margin, row_y, content_w, row_h, "F")
         pdf.set_xy(margin, row_y)
         pdf.set_text_color(*dark)
-        pdf.cell(col_desc, row_h, f"  {_latin1(line.description)}")
+        pdf.cell(col_desc, row_h, _latin1(line.description))
         pdf.cell(col_qty, row_h, f"{line.quantity.normalize():f}", align="R")
         pdf.cell(
             col_unit,
@@ -627,7 +631,7 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
         pdf.cell(
             col_amount,
             row_h,
-            f"{_format_money(line.line_total, invoice.currency)}  ",
+            _format_money(line.line_total, invoice.currency),
             align="R",
             new_x=XPos.LMARGIN,
             new_y=YPos.NEXT,
@@ -650,7 +654,7 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     pdf.set_xy(totals_x, totals_y)
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(*gray)
-    pdf.cell(40, 6, "Subtotal")
+    pdf.cell(40, 6, "Subtotaal")
     pdf.set_text_color(*dark)
     pdf.cell(
         40,
@@ -665,7 +669,7 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     for bucket in breakdown:
         pdf.set_xy(totals_x, cursor_y)
         pdf.set_text_color(*gray)
-        pdf.cell(40, 6, f"VAT ({bucket['rate'].normalize():f}%)")
+        pdf.cell(40, 6, f"BTW ({bucket['rate'].normalize():f}%)")
         pdf.set_text_color(*dark)
         pdf.cell(
             40,
@@ -678,14 +682,15 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
         cursor_y += 6
 
     div_y = cursor_y + 2
-    pdf.set_draw_color(*border_color)
+    pdf.set_draw_color(*strong_border)
+    pdf.set_line_width(0.4)
     pdf.line(totals_x, div_y, page_w - margin, div_y)
 
     pdf.set_xy(totals_x, div_y + 3)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(*dark)
-    pdf.cell(40, 8, "Total")
-    pdf.set_text_color(*accent)
+    pdf.cell(40, 8, "Totaal")
+    pdf.set_text_color(*dark)
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(
         40,
@@ -701,7 +706,7 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
         pdf.set_x(margin)
         pdf.set_font("Helvetica", "B", 8)
         pdf.set_text_color(*light_gray)
-        pdf.cell(content_w, 5, "NOTES", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(content_w, 5, "OPMERKINGEN", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(*dark)
         pdf.set_x(margin)
@@ -716,7 +721,7 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
             pdf.cell(
                 content_w,
                 4.5,
-                _latin1(f"Please transfer to: {invoice.sender_iban}"),
+                _latin1(f"Gelieve over te maken naar: {invoice.sender_iban}"),
                 new_x=XPos.LMARGIN,
                 new_y=YPos.NEXT,
             )

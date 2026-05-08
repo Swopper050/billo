@@ -95,9 +95,22 @@ function fromInvoice(invoice: InvoiceAttributes): EditorState {
   }
 }
 
+function currencySymbol(currency: string): string {
+  switch (currency.toUpperCase()) {
+    case 'EUR':
+      return '€'
+    case 'USD':
+      return '$'
+    case 'GBP':
+      return '£'
+    default:
+      return currency
+  }
+}
+
 function formatMoney(amount: number, currency: string): string {
   if (Number.isNaN(amount)) amount = 0
-  return `${currency} ${amount.toLocaleString(undefined, {
+  return `${currencySymbol(currency)} ${amount.toLocaleString('nl-NL', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`
@@ -107,7 +120,7 @@ function formatDate(value: string | null): string {
   if (!value) return '—'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString()
+  return d.toLocaleDateString('nl-NL')
 }
 
 interface VatBucket {
@@ -428,8 +441,6 @@ function InvoicePreview(props: PreviewProps): JSXElement {
   const { t } = useLocale()
   return (
     <div class="bg-base-100 border border-base-300 rounded-2xl shadow-sm overflow-hidden">
-      <div class="h-1 bg-success" />
-
       <div class="p-6 md:p-10 flex flex-col gap-8">
         {/* Header */}
         <div class="flex flex-col md:flex-row gap-6 md:items-start md:justify-between">
@@ -476,10 +487,10 @@ function InvoicePreview(props: PreviewProps): JSXElement {
           </div>
 
           <div class="text-right">
-            <div class="text-3xl font-bold tracking-tight">INVOICE</div>
+            <div class="text-3xl font-light tracking-tight">Factuur</div>
             <div class="mt-2">
               <input
-                class="input input-ghost input-sm text-right text-sm w-44 focus:outline-success"
+                class="input input-ghost input-sm text-right text-sm w-44"
                 value={props.form.invoice_number}
                 placeholder={t('invoice_number_placeholder')}
                 onInput={(e) =>
@@ -578,19 +589,28 @@ function InvoicePreview(props: PreviewProps): JSXElement {
 
         {/* Lines */}
         <div>
-          <div class="text-xs uppercase tracking-wider text-base-content/50 font-semibold mb-2">
-            {t('invoice_lines')}
-          </div>
-          <div class="overflow-x-auto rounded-lg border border-base-300">
+          <div class="overflow-x-auto">
             <table class="table table-sm">
-              <thead class="bg-base-200">
-                <tr>
-                  <th class="w-2/5">{t('description')}</th>
-                  <th class="text-right">{t('quantity')}</th>
-                  <th class="text-right">{t('unit_price')}</th>
-                  <th class="text-right">{t('vat_rate_short')}</th>
-                  <th class="text-right">{t('vat')}</th>
-                  <th class="text-right">{t('line_total')}</th>
+              <thead>
+                <tr class="border-b-2 border-base-content/20">
+                  <th class="w-2/5 font-bold text-base-content normal-case">
+                    {t('description')}
+                  </th>
+                  <th class="text-right font-bold text-base-content normal-case">
+                    {t('quantity')}
+                  </th>
+                  <th class="text-right font-bold text-base-content normal-case">
+                    {t('unit_price')}
+                  </th>
+                  <th class="text-right font-bold text-base-content normal-case">
+                    {t('vat_rate_short')}
+                  </th>
+                  <th class="text-right font-bold text-base-content normal-case">
+                    {t('vat')}
+                  </th>
+                  <th class="text-right font-bold text-base-content normal-case">
+                    {t('line_total')}
+                  </th>
                   <th />
                 </tr>
               </thead>
@@ -719,10 +739,10 @@ function InvoicePreview(props: PreviewProps): JSXElement {
                 </div>
               )}
             </For>
-            <div class="border-t border-base-300 my-1" />
+            <div class="border-t border-base-content/20 my-1" />
             <div class="flex items-center justify-between py-1 text-base font-bold">
               <span>{t('total')}</span>
-              <span class="tabular-nums text-success">
+              <span class="tabular-nums">
                 {formatMoney(props.total, props.form.currency)}
               </span>
             </div>
