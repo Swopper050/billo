@@ -99,18 +99,51 @@ export function CompanySettingsPage(): JSXElement {
       input.value = ''
       return
     }
-    const dataUrl = await readFileAsDataUrl(file)
-    setForm('logo_data_url', dataUrl)
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      setForm('logo_data_url', dataUrl)
+    } catch {
+      setLogoError(t('logo_invalid_type'))
+    } finally {
+      // Reset the input so selecting the same file again still triggers onChange.
+      input.value = ''
+    }
   }
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault()
+    setLogoError(null)
     const id = workspaceId()
     if (!id) return
     setSaving(true)
     try {
-      await updateCompanySettings(id, { ...form })
+      const updated = await updateCompanySettings(id, { ...form })
+      // Mirror the saved values back into the form so the user sees the
+      // round-tripped data (e.g. logo_data_url confirmed by the server).
+      setForm({
+        company_name: updated.company_name ?? '',
+        email: updated.email ?? '',
+        phone: updated.phone ?? '',
+        website: updated.website ?? '',
+        vat_number: updated.vat_number ?? '',
+        kvk_number: updated.kvk_number ?? '',
+        iban: updated.iban ?? '',
+        address_line1: updated.address_line1 ?? '',
+        address_line2: updated.address_line2 ?? '',
+        postal_code: updated.postal_code ?? '',
+        city: updated.city ?? '',
+        country: updated.country ?? '',
+        default_vat_rate: updated.default_vat_rate ?? '21.00',
+        invoice_prefix: updated.invoice_prefix ?? '',
+        next_invoice_number: updated.next_invoice_number ?? 1,
+        footer_text: updated.footer_text ?? '',
+        logo_data_url: updated.logo_data_url ?? null,
+      })
       setSavedAt(new Date())
+    } catch (err) {
+      setLogoError(
+        err instanceof Error ? err.message : t('an_unknown_error_occurred')
+      )
     } finally {
       setSaving(false)
     }

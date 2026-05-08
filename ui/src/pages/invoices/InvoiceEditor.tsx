@@ -6,6 +6,7 @@ import {
   For,
   JSXElement,
   Show,
+  untrack,
 } from 'solid-js'
 import { createStore, produce, SetStoreFunction } from 'solid-js/store'
 import { A, useNavigate, useParams } from '@solidjs/router'
@@ -166,25 +167,28 @@ export function InvoiceEditor(): JSXElement {
     }
   )
 
-  // When editing, hydrate from the existing invoice. When creating, seed VAT
-  // from company settings once they load.
+  // When editing, hydrate from the existing invoice once it loads. When
+  // creating, seed empty lines with the company's default VAT once settings
+  // load. We use untrack inside so reading form state here doesn't make the
+  // effect retrigger itself when we write back to the store.
+  let seededFromSettings = false
   createEffect(() => {
     const invoice = existingInvoice()
     if (invoice) {
-      setForm(fromInvoice(invoice))
+      untrack(() => setForm(fromInvoice(invoice)))
       return
     }
     if (isEdit()) return
     const settings = companySettings()
-    if (settings) {
-      setForm(
-        'lines',
-        form.lines.map((l) =>
-          l.vat_rate === '21.00'
-            ? { ...l, vat_rate: settings.default_vat_rate }
-            : l
+    if (settings && !seededFromSettings) {
+      seededFromSettings = true
+      const defaultVat = settings.default_vat_rate
+      untrack(() => {
+        setForm(
+          'lines',
+          form.lines.map((l) => ({ ...l, vat_rate: defaultVat }))
         )
-      )
+      })
     }
   })
 
@@ -581,10 +585,11 @@ function InvoicePreview(props: PreviewProps): JSXElement {
             <table class="table table-sm">
               <thead class="bg-base-200">
                 <tr>
-                  <th class="w-1/2">{t('description')}</th>
+                  <th class="w-2/5">{t('description')}</th>
                   <th class="text-right">{t('quantity')}</th>
                   <th class="text-right">{t('unit_price')}</th>
                   <th class="text-right">{t('vat_rate_short')}</th>
+                  <th class="text-right">{t('vat')}</th>
                   <th class="text-right">{t('line_total')}</th>
                   <th />
                 </tr>
@@ -594,7 +599,9 @@ function InvoicePreview(props: PreviewProps): JSXElement {
                   {(line, index) => {
                     const qty = () => parseFloat(line.quantity || '0') || 0
                     const price = () => parseFloat(line.unit_price || '0') || 0
+                    const rate = () => parseFloat(line.vat_rate || '0') || 0
                     const lineTotal = () => qty() * price()
+                    const lineVat = () => (lineTotal() * rate()) / 100
                     return (
                       <tr>
                         <td>
@@ -658,6 +665,9 @@ function InvoicePreview(props: PreviewProps): JSXElement {
                             />
                             <span class="text-base-content/50 text-sm">%</span>
                           </div>
+                        </td>
+                        <td class="text-right tabular-nums text-base-content/70">
+                          {formatMoney(lineVat(), props.form.currency)}
                         </td>
                         <td class="text-right font-medium tabular-nums">
                           {formatMoney(lineTotal(), props.form.currency)}

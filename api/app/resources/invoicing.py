@@ -571,11 +571,12 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     pdf.set_fill_color(*dark)
     pdf.rect(margin, table_top, content_w, hdr_h, "F")
 
-    col_desc = content_w * 0.45
-    col_qty = content_w * 0.11
-    col_unit = content_w * 0.16
-    col_vat = content_w * 0.10
-    col_amount = content_w * 0.18
+    col_desc = content_w * 0.40
+    col_qty = content_w * 0.10
+    col_unit = content_w * 0.14
+    col_vat_pct = content_w * 0.08
+    col_vat_amt = content_w * 0.13
+    col_amount = content_w * 0.15
 
     pdf.set_xy(margin, table_top)
     pdf.set_font("Helvetica", "B", 8.5)
@@ -583,7 +584,8 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
     pdf.cell(col_desc, hdr_h, "  Description")
     pdf.cell(col_qty, hdr_h, "Qty", align="R")
     pdf.cell(col_unit, hdr_h, "Unit Price", align="R")
-    pdf.cell(col_vat, hdr_h, "VAT", align="R")
+    pdf.cell(col_vat_pct, hdr_h, "VAT %", align="R")
+    pdf.cell(col_vat_amt, hdr_h, "VAT", align="R")
     pdf.cell(
         col_amount,
         hdr_h,
@@ -612,7 +614,15 @@ def _generate_invoice_pdf(invoice: CustomerInvoice) -> bytes:
             _format_money(line.unit_price, invoice.currency),
             align="R",
         )
-        pdf.cell(col_vat, row_h, f"{line.vat_rate.normalize():f}%", align="R")
+        pdf.cell(col_vat_pct, row_h, f"{line.vat_rate.normalize():f}%", align="R")
+        pdf.set_text_color(*gray)
+        pdf.cell(
+            col_vat_amt,
+            row_h,
+            _format_money(line.line_vat, invoice.currency),
+            align="R",
+        )
+        pdf.set_text_color(*dark)
         pdf.set_font("Helvetica", "B", 9)
         pdf.cell(
             col_amount,
