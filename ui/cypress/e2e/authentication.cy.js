@@ -26,12 +26,12 @@ describe('authentication', () => {
 
   it('Login failed with incorrect password', () => {
     cy.login('admin@test.nl', 'wrong-password')
-    cy.get('[data-cy="login-error"]').should('contain.text', 'Could not login with the given email and password')
+    cy.get('[data-cy="login-error"]').should('contain.text', 'Kon niet inloggen met dit e-mailadres en wachtwoord')
   })
 
   it('Register failed email already exists', () => {
     cy.register('Admin User', 'admin@test.nl', 'Testing1!')
-    cy.get('[data-cy="register-error"]').should('contain.text', 'An account with this email already exists')
+    cy.get('[data-cy="register-error"]').should('contain.text', 'Een account met dit e-mailadres bestaat al')
     cy.url().should('not.include', '/home')
   })
 
@@ -49,6 +49,6 @@ describe('authentication', () => {
     cy.navigateToAccount()
     cy.deleteAccount()
     cy.login('test@test.nl', 'Testing1!')
-    cy.get('[data-cy="login-error"]').should('contain.text', 'Could not login with the given email and password')
+    cy.get('[data-cy="login-error"]').should('contain.text', 'Kon niet inloggen met dit e-mailadres en wachtwoord')
   })
 })
