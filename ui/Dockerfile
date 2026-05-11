@@ -2,16 +2,18 @@ FROM node:23-slim AS build
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-# Pin pnpm to v9 — matches the version used in CI (pnpm/action-setup).
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+RUN corepack enable
 
 WORKDIR /app
+
 # The Cypress binary is only needed for the e2e tests, never in the built
 # assets — skip the heavy download during the image build.
 ENV CYPRESS_INSTALL_BINARY=0
+
 COPY package.json package.json
 COPY pnpm-lock.yaml pnpm-lock.yaml
-RUN pnpm install
+COPY pnpm-workspace.yaml pnpm-workspace.yaml
+RUN pnpm install --frozen-lockfile 
 
 COPY . .
 
