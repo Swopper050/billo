@@ -543,14 +543,6 @@ function InvoicePreview(props: PreviewProps): JSXElement {
                 <option value="sent">{t('invoice_status_sent')}</option>
                 <option value="paid">{t('invoice_status_paid')}</option>
               </select>
-              <span class="text-base-content/60">{t('currency')}</span>
-              <input
-                class="input input-bordered input-sm w-full"
-                value={props.form.currency}
-                onInput={(e) =>
-                  props.setForm('currency', e.currentTarget.value)
-                }
-              />
             </div>
           </div>
 

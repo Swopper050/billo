@@ -117,7 +117,6 @@ export const dict = {
   create_new_user: 'Nieuwe gebruiker aanmaken',
   create_user: 'Gebruiker aanmaken',
   create_workspace: 'Werkruimte aanmaken',
-  currency: 'Valuta',
   current_password: 'Huidig wachtwoord',
   danger_zone: 'Gevarenzone',
   default_vat_rate: 'Standaard BTW-tarief (%)',
