@@ -36,10 +36,6 @@
     "ignoredBuiltDependencies": [
       "cypress",
       "esbuild"
-    ],
-    "onlyBuiltDependencies": [
-      "cypress",
-      "esbuild"
     ]
   }
 }
