@@ -45,6 +45,6 @@ describe('admin', () => {
     cy.logout()
 
     cy.login("user@test.nl", "Testing1!")
-    cy.get('[data-cy="login-error"]').should('contain.text', 'Could not login with the given email and password');
+    cy.get('[data-cy="login-error"]').should('contain.text', 'Kon niet inloggen met dit e-mailadres en wachtwoord');
   });
 })

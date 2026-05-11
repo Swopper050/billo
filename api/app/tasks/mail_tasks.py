@@ -17,8 +17,7 @@ logger = get_task_logger(__name__)
 @shared_task(ignore_result=True)
 def send_forgot_password_email(*, receiver: str, reset_token: str):
     reset_link = (
-        f"{BILLO_FRONTEND_URL}/reset-password?"
-        f"email={receiver}&reset_token={reset_token}"
+        f"{BILLO_FRONTEND_URL}/reset-password?email={receiver}&reset_token={reset_token}"
     )
 
     with open("./email_templates/forgot_password.html", "r") as file:

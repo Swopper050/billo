@@ -7,7 +7,6 @@ import { useLocale } from '../context/LocaleProvider'
 
 import { Button, IconButton } from '../components/Button'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
-import { LanguageSelector } from '../components/LanguageSelector'
 import { LoginModal } from '../components/LoginModal'
 import { RegisterModal } from '../components/RegisterModal'
 
@@ -39,7 +38,6 @@ export function TopBar(): JSXElement {
 
         <div class="flex items-center gap-1">
           <ThemeSwitcher />
-          <LanguageSelector />
         </div>
 
         <div class="hidden md:flex md:items-center md:gap-1 md:ml-2">

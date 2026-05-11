@@ -1,7 +1,6 @@
 import type { ParentProps, JSXElement } from 'solid-js'
 
 import { ThemeSwitcher } from './ThemeSwitcher'
-import { LanguageSelector } from './LanguageSelector'
 
 interface AuthCardProps extends ParentProps {
   title: string
@@ -13,7 +12,6 @@ export function AuthCard(props: AuthCardProps): JSXElement {
     <div class="min-h-screen bg-base-200 flex items-center justify-center p-4 relative">
       <div class="absolute top-4 right-4 flex items-center gap-1">
         <ThemeSwitcher />
-        <LanguageSelector />
       </div>
 
       <div class="bg-base-100 border border-base-300 rounded-xl p-10 w-full max-w-sm shadow-sm">

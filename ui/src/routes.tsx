@@ -18,6 +18,10 @@ import { NotFoundPage } from './pages/NotFound'
 import { AcceptInvitationPage } from './pages/AcceptInvitation'
 import { BillingRedirect } from './pages/billing/BillingRedirect'
 import { BillingCheckoutPage } from './pages/billing/BillingCheckoutPage'
+import { ContactsPage } from './pages/contacts/ContactsPage'
+import { InvoicesPage } from './pages/invoices/InvoicesPage'
+import { InvoiceEditor } from './pages/invoices/InvoiceEditor'
+import { CompanySettingsPage } from './pages/company/CompanySettingsPage'
 
 function ProtectedRoute(props: {
   component: Component
@@ -88,6 +92,46 @@ export const routes: RouteDefinition[] = [
       <ProtectedRoute
         adminOnly={true}
         component={() => <BasePage mainComponent={AdminPage} />}
+      />
+    ),
+  },
+  {
+    path: '/contacts',
+    component: () => (
+      <ProtectedRoute
+        component={() => <BasePage mainComponent={ContactsPage} />}
+      />
+    ),
+  },
+  {
+    path: '/invoices',
+    component: () => (
+      <ProtectedRoute
+        component={() => <BasePage mainComponent={InvoicesPage} />}
+      />
+    ),
+  },
+  {
+    path: '/invoices/new',
+    component: () => (
+      <ProtectedRoute
+        component={() => <BasePage mainComponent={InvoiceEditor} />}
+      />
+    ),
+  },
+  {
+    path: '/company',
+    component: () => (
+      <ProtectedRoute
+        component={() => <BasePage mainComponent={CompanySettingsPage} />}
+      />
+    ),
+  },
+  {
+    path: '/invoices/:id',
+    component: () => (
+      <ProtectedRoute
+        component={() => <BasePage mainComponent={InvoiceEditor} />}
       />
     ),
   },

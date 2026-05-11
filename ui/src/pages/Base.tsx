@@ -5,7 +5,6 @@ import { FrozenWorkspaceModal } from '../components/FrozenWorkspaceModal'
 import { IconButton } from '../components/Button'
 import { ProfileMenu } from '../components/ProfileMenu'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
-import { LanguageSelector } from '../components/LanguageSelector'
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher'
 
 import { useLocale } from '../context/LocaleProvider'
@@ -49,7 +48,6 @@ export function BasePage(props: BasePageProps): JSXElement {
           </div>
           <div class="flex-none gap-2">
             <ThemeSwitcher />
-            <LanguageSelector />
             <ProfileMenu />
           </div>
         </div>
@@ -90,6 +88,24 @@ export function BasePage(props: BasePageProps): JSXElement {
               <A href="/home" onClick={() => setDrawerOpen(false)}>
                 <i class="fa-solid fa-home mr-2" />
                 {t('home')}
+              </A>
+            </li>
+            <li class="mb-1 font-bold">
+              <A href="/contacts" onClick={() => setDrawerOpen(false)}>
+                <i class="fa-solid fa-address-book mr-2" />
+                {t('contacts')}
+              </A>
+            </li>
+            <li class="mb-1 font-bold">
+              <A href="/invoices" onClick={() => setDrawerOpen(false)}>
+                <i class="fa-solid fa-file-invoice mr-2" />
+                {t('invoices')}
+              </A>
+            </li>
+            <li class="mb-1 font-bold">
+              <A href="/company" onClick={() => setDrawerOpen(false)}>
+                <i class="fa-solid fa-briefcase mr-2" />
+                {t('my_company')}
               </A>
             </li>
           </ul>
